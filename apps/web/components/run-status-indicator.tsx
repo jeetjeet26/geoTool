@@ -12,9 +12,10 @@ type ActiveRun = {
 
 type RunStatusIndicatorProps = {
   clientId: string;
+  onRunDetected?: () => void;
 };
 
-export default function RunStatusIndicator({ clientId }: RunStatusIndicatorProps) {
+export default function RunStatusIndicator({ clientId, onRunDetected }: RunStatusIndicatorProps) {
   const [activeRuns, setActiveRuns] = useState<ActiveRun[]>([]);
 
   useEffect(() => {
@@ -25,6 +26,12 @@ export default function RunStatusIndicator({ clientId }: RunStatusIndicatorProps
         const response = await fetch(`/api/runs/status?clientId=${clientId}`);
         const data = await response.json();
         const runs = data.activeRuns || [];
+        
+        // If we detected runs and previously had none, notify parent
+        if (runs.length > 0 && activeRuns.length === 0 && onRunDetected) {
+          onRunDetected();
+        }
+        
         setActiveRuns(runs);
 
         // Continue polling if there are active runs
@@ -50,7 +57,7 @@ export default function RunStatusIndicator({ clientId }: RunStatusIndicatorProps
         clearInterval(pollInterval);
       }
     };
-  }, [clientId]);
+  }, [clientId, onRunDetected, activeRuns.length]);
 
   if (activeRuns.length === 0) {
     return null;

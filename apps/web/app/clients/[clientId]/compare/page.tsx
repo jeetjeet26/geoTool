@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { formatDistanceToNow } from 'date-fns';
 
 import { getClientById, getLatestRunDetailWithDiff } from '@geo/db';
+import ActionBar from '@/components/action-bar';
+import EmptyState from '@/components/empty-state';
 
 function formatSurface(surface: string) {
   return surface.charAt(0).toUpperCase() + surface.slice(1);
@@ -35,10 +36,11 @@ export default async function ComparePage({
           </div>
         </header>
 
-        <div className="empty-state">
-          <strong className="text-sm text-slate-600">Insufficient data</strong>
-          <span>Run crawls for both surfaces to enable comparison.</span>
-        </div>
+        <EmptyState
+          title="Insufficient data"
+          message="Run crawls for both surfaces to enable comparison."
+          icon="📊"
+        />
       </section>
     );
   }
@@ -94,14 +96,10 @@ export default async function ComparePage({
               {claudeDetail.run.visibilityPct.toFixed(1)}%
             </span>
           </div>
-          <Link
-            className="inline-flex items-center justify-center rounded-full border border-neutral-200 px-5 py-2 text-sm font-medium text-slate-700 transition hover:border-neutral-300 hover:text-slate-900"
-            href={`/clients/${client.id}/queries`}
-          >
-            Deep-dive queries →
-          </Link>
         </div>
       </header>
+
+      <ActionBar clientId={client.id} page="compare" latestRunId={openaiDetail.run.runId} />
 
       {/* Summary Metrics */}
       <section className="grid gap-4 md:grid-cols-4">
@@ -226,4 +224,5 @@ export default async function ComparePage({
     </section>
   );
 }
+
 

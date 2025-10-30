@@ -1,30 +1,12 @@
 import Link from 'next/link';
-import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
 
-import { getClientById, runClientOnce } from '@geo/db';
-import RunStatusIndicator from '../../../components/run-status-indicator';
+import { getClientById } from '@geo/db';
+import UnifiedNav from '../../../components/unified-nav';
 
-import ClientSubNav from '../../../components/client-sub-nav';
-
-async function runClientAction(formData: FormData) {
-  'use server';
-
-  const clientId = formData.get('clientId')?.toString();
-
-  if (!clientId) {
-    throw new Error('Missing client ID');
-  }
-
-  // Start the run asynchronously - don't await, let it run in background
-  runClientOnce({ clientId, surfaces: ['openai', 'claude'] }).catch((error) => {
-    console.error('[server action] Run failed:', error);
-  });
-
-  revalidatePath(`/clients/${clientId}`);
-  revalidatePath(`/clients/${clientId}/queries`);
-  revalidatePath(`/clients/${clientId}/runs`);
-  revalidatePath('/');
+function truncateUrl(url: string, maxLength: number = 50): string {
+  if (url.length <= maxLength) return url;
+  return url.slice(0, maxLength) + '...';
 }
 
 export default async function ClientLayout({
@@ -40,9 +22,10 @@ export default async function ClientLayout({
     notFound();
   }
 
+  const domainDisplay = client.domains.map((d) => truncateUrl(d, 50)).join(', ');
+
   return (
     <div className="flex flex-1 flex-col gap-10">
-      <RunStatusIndicator clientId={client.id} />
       <div className="space-y-6">
         <Link
           className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
@@ -60,22 +43,12 @@ export default async function ClientLayout({
             </p>
             <div className="flex flex-wrap gap-3 text-xs uppercase tracking-wide text-slate-500">
               {client.primaryGeo && <span>Primary market: {client.primaryGeo}</span>}
-              {client.domains.length > 0 && <span>Domains: {client.domains.join(', ')}</span>}
+              {client.domains.length > 0 && <span>Domains: {domainDisplay}</span>}
             </div>
           </div>
-
-          <form action={runClientAction} className="flex flex-col items-start gap-3 lg:items-end">
-            <input name="clientId" type="hidden" value={client.id} />
-            <button
-              className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-brand-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              type="submit"
-            >
-              Prepare client report
-            </button>
-          </form>
         </div>
 
-        <ClientSubNav clientId={client.id} />
+        <UnifiedNav clientId={client.id} />
       </div>
 
       <div className="flex flex-1 flex-col gap-10">{children}</div>

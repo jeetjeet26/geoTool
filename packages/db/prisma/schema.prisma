@@ -22,14 +22,37 @@ enum QueryTypeEnum {
   faq
 }
 
+enum QueryAnnotationTagEnum {
+  win
+  risk
+  gap
+  missing_citation
+  visibility
+  competitor
+}
+
+enum KpiUnitEnum {
+  percent
+  number
+  currency
+  ratio
+}
+
 model Client {
   id           String   @id @default(uuid())
   name         String
   domains      String[]
   competitors  String[]
   primaryGeo   String?
+  narrativeNotes String? @db.Text
+  reportingCadence String?
+  baselineRunId  String? @unique
+  visibilityTarget Decimal?
+  baselineRun   Run?    @relation("ClientBaseline", fields: [baselineRunId], references: [id])
   queries      Query[]
   runs         Run[]
+  kpis         ClientKpi[]
+  annotations  QueryAnnotation[] @relation("ClientAnnotations")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -43,6 +66,7 @@ model Query {
   geo       String?
   weight    Decimal?      @default(1)
   answers   Answer[]
+  annotations QueryAnnotation[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
@@ -59,6 +83,8 @@ model Run {
   finishedAt DateTime?
   answers    Answer[]
   scores     Score[]
+  annotations QueryAnnotation[]
+  baselineFor Client?     @relation("ClientBaseline")
 
   @@index([clientId, startedAt])
 }
@@ -103,4 +129,52 @@ model Score {
   createdAt     DateTime @default(now())
 
   @@index([runId])
+}
+
+model QueryAnnotation {
+  id         String            @id @default(uuid())
+  client     Client            @relation("ClientAnnotations", fields: [clientId], references: [id], onDelete: Cascade)
+  clientId   String
+  query      Query             @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  queryId    String
+  run        Run?              @relation(fields: [runId], references: [id], onDelete: SetNull)
+  runId      String?
+  surface    SurfaceEnum?
+  tags       QueryAnnotationTagEnum[]
+  note       String?           @db.Text
+  evidence   QueryEvidence[]
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([clientId])
+  @@index([queryId])
+  @@index([runId])
+}
+
+model QueryEvidence {
+  id            String          @id @default(uuid())
+  annotation    QueryAnnotation @relation(fields: [annotationId], references: [id], onDelete: Cascade)
+  annotationId  String
+  label         String
+  excerpt       String?         @db.Text
+  url           String?
+  createdAt     DateTime        @default(now())
+
+  @@index([annotationId])
+}
+
+model ClientKpi {
+  id           String    @id @default(uuid())
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId     String
+  label        String
+  description  String?   @db.Text
+  unit         KpiUnitEnum
+  targetValue  Decimal?
+  currentValue Decimal?
+  visibilityLink Decimal?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([clientId])
 }

@@ -8,6 +8,7 @@
     "run": "tsx src/run.ts",
     "run:once": "pnpm run run",
     "report": "tsx src/report.ts",
+    "email:digest": "tsx src/email-digest.ts",
     "schedule": "tsx src/scheduler.ts",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "vitest --run"

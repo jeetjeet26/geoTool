@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import QueryFilters from './query-filters';
+import ScoreBreakdown from './score-breakdown';
+import DeltaBadge from './delta-badge';
+import TablePagination from './table-pagination';
 
 type QueryRow = {
   queryId: string;
@@ -30,23 +33,36 @@ type QueryRow = {
 
 type FilteredQueriesTableProps = {
   queries: QueryRow[];
+  annotations?: Record<
+    string,
+    Array<{
+      id: string;
+      tags: string[];
+      note: string | null;
+      updatedAt: string;
+    }>
+  >;
 };
 
-function formatDelta(value: number | null | undefined, { percent = false } = {}) {
-  if (value === null || value === undefined) return '—';
-  const precision = percent ? 1 : Number.isInteger(value) ? 0 : 1;
-  const formatted = value.toFixed(precision);
-  if (value > 0) return `+${formatted}`;
-  if (percent) return formatted;
-  return formatted;
-}
-
-export default function FilteredQueriesTable({ queries }: FilteredQueriesTableProps) {
+export default function FilteredQueriesTable({ queries, annotations = {} }: FilteredQueriesTableProps) {
   const [filteredQueries, setFilteredQueries] = useState<QueryRow[]>(queries);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  const paginatedQueries = filteredQueries.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Reset to page 1 when filters change
+  const handleFilterChange = (filtered: QueryRow[]) => {
+    setFilteredQueries(filtered);
+    setCurrentPage(1);
+  };
 
   return (
     <>
-      <QueryFilters queries={queries} onFilteredChange={setFilteredQueries} />
+      <QueryFilters queries={queries} onFilteredChange={handleFilterChange} />
 
       <div className="table-wrapper">
         <table className="table">
@@ -59,64 +75,105 @@ export default function FilteredQueriesTable({ queries }: FilteredQueriesTablePr
               <th className="text-right">Link Rank</th>
               <th className="text-right">SOV</th>
               <th className="text-right">Score</th>
+              <th>Annotations</th>
               <th className="text-right">Δ Score</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {filteredQueries.map((query) => (
+            {paginatedQueries.map((query) => (
               <tr key={query.queryId}>
                 <td>
                   <div className="font-medium text-slate-900">{query.text}</div>
                   {query.flags.length > 0 && (
-                    <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-rose-600">
-                      {query.flags.join(', ')}
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {query.flags.map((flag) => (
+                        <span
+                          key={flag}
+                          className="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-rose-700"
+                        >
+                          {flag}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </td>
-                <td className="text-slate-500">{query.type}</td>
-                <td className="text-right">
-                  <span className={query.presence ? 'font-semibold text-slate-900' : 'text-slate-500'}>
-                    {query.presence ? 'Yes' : 'No'}
+                <td>
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+                    {query.type}
                   </span>
-                  {query.deltas && (
-                    <div className="text-xs text-slate-500">{formatDelta(query.deltas.presenceDelta)}</div>
-                  )}
                 </td>
                 <td className="text-right">
-                  {query.llmRank ?? '—'}
-                  {query.deltas?.llmRankDelta !== null && query.deltas?.llmRankDelta !== undefined && (
-                    <div className="text-xs text-slate-500">{formatDelta(query.deltas.llmRankDelta)}</div>
-                  )}
-                </td>
-                <td className="text-right">
-                  {query.linkRank ?? '—'}
-                  {query.deltas?.linkRankDelta !== null && query.deltas?.linkRankDelta !== undefined && (
-                    <div className="text-xs text-slate-500">{formatDelta(query.deltas.linkRankDelta)}</div>
-                  )}
-                </td>
-                <td className="text-right">
-                  {query.sov !== null ? `${(query.sov * 100).toFixed(1)}%` : '—'}
-                  {query.deltas?.sovDelta !== null && query.deltas?.sovDelta !== undefined && (
-                    <div className="text-xs text-slate-500">
-                      {formatDelta((query.deltas.sovDelta ?? 0) * 100, { percent: true })}%
-                    </div>
-                  )}
-                </td>
-                <td className="text-right">
-                  {query.score.toFixed(1)}
-                  <div className="text-xs text-slate-500">
-                    Pos {query.breakdown.position.toFixed(0)} · Link {query.breakdown.link.toFixed(0)} · SOV{' '}
-                    {query.breakdown.sov.toFixed(0)} · Acc {query.breakdown.accuracy.toFixed(0)}
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={query.presence ? 'font-semibold text-green-700' : 'text-slate-500'}>
+                      {query.presence ? 'Yes' : 'No'}
+                    </span>
+                    {query.deltas && (
+                      <DeltaBadge value={query.deltas.presenceDelta} type="score" />
+                    )}
                   </div>
                 </td>
-                <td className="text-right font-semibold text-slate-900">
-                  {formatDelta(query.deltas?.scoreDelta ?? 0)}
+                <td className="text-right">
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="font-medium text-slate-900">{query.llmRank ?? '—'}</span>
+                    {query.deltas?.llmRankDelta !== null && query.deltas?.llmRankDelta !== undefined && (
+                      <DeltaBadge value={query.deltas.llmRankDelta} type="rank" />
+                    )}
+                  </div>
+                </td>
+                <td className="text-right">
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="font-medium text-slate-900">{query.linkRank ?? '—'}</span>
+                    {query.deltas?.linkRankDelta !== null && query.deltas?.linkRankDelta !== undefined && (
+                      <DeltaBadge value={query.deltas.linkRankDelta} type="rank" />
+                    )}
+                  </div>
+                </td>
+                <td className="text-right">
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="font-medium text-slate-900">
+                      {query.sov !== null ? `${(query.sov * 100).toFixed(1)}%` : '—'}
+                    </span>
+                    {query.deltas?.sovDelta !== null && query.deltas?.sovDelta !== undefined && (
+                      <DeltaBadge value={(query.deltas.sovDelta ?? 0) * 100} type="percent" />
+                    )}
+                  </div>
+                </td>
+                <td className="text-right">
+                  <ScoreBreakdown score={query.score} breakdown={query.breakdown} compact />
+                </td>
+                <td>
+                  <div className="flex flex-wrap gap-2">
+                    {(annotations[query.queryId] ?? []).map((annotation) => (
+                      <span
+                        key={annotation.id}
+                        className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                      >
+                        {annotation.tags.join(', ')}
+                      </span>
+                    ))}
+                    {(annotations[query.queryId] ?? []).length === 0 && (
+                      <span className="text-xs text-slate-500">No notes</span>
+                    )}
+                  </div>
+                </td>
+                <td className="text-right">
+                  <DeltaBadge value={query.deltas?.scoreDelta} type="score" showZero />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {filteredQueries.length > pageSize && (
+        <TablePagination
+          current={currentPage}
+          total={filteredQueries.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
     </>
   );
 }

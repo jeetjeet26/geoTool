@@ -88,26 +88,36 @@ export default async function ClientRunDetailPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {runDetail.queries.map((query) => (
-                <tr key={query.queryId}>
-                  <td>
-                    <div className="font-semibold text-slate-900">{query.text}</div>
-                    {query.flags.length > 0 && (
-                      <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-rose-600">
-                        {query.flags.join(', ')}
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-slate-600">{query.type}</td>
-                  <td className={`text-right font-medium ${query.presence ? 'text-slate-900' : 'text-slate-500'}`}>
-                    {query.presence ? 'Yes' : 'No'}
-                  </td>
-                  <td className="text-right">{query.llmRank ?? '—'}</td>
-                  <td className="text-right">{query.linkRank ?? '—'}</td>
-                  <td className="text-right">{query.sov !== null ? `${(query.sov * 100).toFixed(1)}%` : '—'}</td>
-                  <td className="text-right font-semibold text-slate-900">{query.score.toFixed(1)}</td>
-                </tr>
-              ))}
+              {runDetail.queries.map((query) => {
+                const hasError = query.error !== undefined;
+                return (
+                  <tr key={query.queryId} className={hasError ? 'bg-rose-50/50' : ''}>
+                    <td>
+                      <div className="font-semibold text-slate-900">{query.text}</div>
+                      {hasError && (
+                        <div className="mt-1 text-xs font-semibold text-rose-600">
+                          ⚠️ Error: {query.error.summary || query.error.message}
+                        </div>
+                      )}
+                      {query.flags.length > 0 && !hasError && (
+                        <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-rose-600">
+                          {query.flags.join(', ')}
+                        </div>
+                      )}
+                    </td>
+                    <td className="text-slate-600">{query.type}</td>
+                    <td className={`text-right font-medium ${query.presence ? 'text-slate-900' : 'text-slate-500'}`}>
+                      {hasError ? '—' : query.presence ? 'Yes' : 'No'}
+                    </td>
+                    <td className="text-right">{hasError ? '—' : query.llmRank ?? '—'}</td>
+                    <td className="text-right">{hasError ? '—' : query.linkRank ?? '—'}</td>
+                    <td className="text-right">{hasError ? '—' : query.sov !== null ? `${(query.sov * 100).toFixed(1)}%` : '—'}</td>
+                    <td className={`text-right font-semibold ${hasError ? 'text-rose-600' : 'text-slate-900'}`}>
+                      {hasError ? 'Error' : query.score.toFixed(1)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

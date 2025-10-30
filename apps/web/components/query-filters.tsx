@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import FilterPills from './filter-pills';
 
 type QueryRow = {
   queryId: string;
@@ -99,75 +100,105 @@ export default function QueryFilters({ queries, onFilteredChange }: QueryFilters
   };
 
   const uniqueTypes = Array.from(new Set(queries.map((q) => q.type)));
+  const activeFilterCount = [typeFilter, presenceFilter, flagsFilter].filter((f) => f !== 'all').length;
+
+  const clearAll = () => {
+    setTypeFilter('all');
+    setPresenceFilter('all');
+    setFlagsFilter('all');
+    const params = new URLSearchParams();
+    if (sortBy !== 'score-delta') {
+      params.set('sort', sortBy);
+    }
+    router.push(`?${params.toString()}`);
+  };
+
+  const typeOptions = [
+    { value: 'all', label: 'All' },
+    ...uniqueTypes.map((type) => ({ value: type, label: type.charAt(0).toUpperCase() + type.slice(1) }))
+  ];
+
+  const presenceOptions = [
+    { value: 'all', label: 'All' },
+    { value: 'yes', label: 'With presence', icon: '✓' },
+    { value: 'no', label: 'No presence', icon: '✗' }
+  ];
+
+  const flagsOptions = [
+    { value: 'all', label: 'All' },
+    { value: 'has', label: 'Has flags', icon: '⚠️' },
+    { value: 'none', label: 'No flags', icon: '✓' }
+  ];
+
+  const sortOptions = [
+    { value: 'score-delta', label: 'Score Δ' },
+    { value: 'score', label: 'Score' },
+    { value: 'presence', label: 'Presence' },
+    { value: 'type', label: 'Type' }
+  ];
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-200 bg-white/80 p-4">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Filter:</span>
-        <select
+    <div className="space-y-4 rounded-xl border border-neutral-200 bg-white/95 p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-900">Filters</h3>
+        {activeFilterCount > 0 && (
+          <button
+            onClick={clearAll}
+            className="text-xs text-slate-500 hover:text-slate-700"
+          >
+            Clear all ({activeFilterCount})
+          </button>
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <FilterPills
+          label="Type"
+          options={typeOptions}
           value={typeFilter}
-          onChange={(e) => {
-            setTypeFilter(e.target.value);
-            updateFilter('type', e.target.value);
+          onChange={(value) => {
+            setTypeFilter(value);
+            updateFilter('type', value);
           }}
-          className="rounded-lg border border-neutral-200 px-2 py-1 text-xs"
-        >
-          <option value="all">All types</option>
-          {uniqueTypes.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
+        />
 
-        <select
+        <FilterPills
+          label="Presence"
+          options={presenceOptions}
           value={presenceFilter}
-          onChange={(e) => {
-            setPresenceFilter(e.target.value);
-            updateFilter('presence', e.target.value);
+          onChange={(value) => {
+            setPresenceFilter(value);
+            updateFilter('presence', value);
           }}
-          className="rounded-lg border border-neutral-200 px-2 py-1 text-xs"
-        >
-          <option value="all">All presence</option>
-          <option value="yes">With presence</option>
-          <option value="no">No presence</option>
-        </select>
+        />
 
-        <select
+        <FilterPills
+          label="Flags"
+          options={flagsOptions}
           value={flagsFilter}
-          onChange={(e) => {
-            setFlagsFilter(e.target.value);
-            updateFilter('flags', e.target.value);
+          onChange={(value) => {
+            setFlagsFilter(value);
+            updateFilter('flags', value);
           }}
-          className="rounded-lg border border-neutral-200 px-2 py-1 text-xs"
-        >
-          <option value="all">All flags</option>
-          <option value="has">Has flags</option>
-          <option value="none">No flags</option>
-        </select>
-      </div>
+        />
 
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Sort:</span>
-        <select
+        <FilterPills
+          label="Sort"
+          options={sortOptions}
           value={sortBy}
-          onChange={(e) => {
-            setSortBy(e.target.value);
-            updateFilter('sort', e.target.value);
+          onChange={(value) => {
+            setSortBy(value);
+            updateFilter('sort', value);
           }}
-          className="rounded-lg border border-neutral-200 px-2 py-1 text-xs"
-        >
-          <option value="score-delta">Score Δ (impact)</option>
-          <option value="score">Score (high to low)</option>
-          <option value="presence">Presence</option>
-          <option value="type">Type</option>
-        </select>
+        />
       </div>
 
-      <div className="text-xs text-slate-500">
-        Showing {filteredAndSorted.length} of {queries.length}
+      <div className="border-t border-neutral-200 pt-3 text-xs text-slate-500">
+        Showing <span className="font-semibold text-slate-900">{filteredAndSorted.length}</span> of{' '}
+        <span className="font-semibold text-slate-900">{queries.length}</span> queries
       </div>
     </div>
   );
 }
+
 

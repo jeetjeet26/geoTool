@@ -1,35 +1,112 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
 import { formatDistanceToNow } from 'date-fns';
 
 import type { Surface } from '@geo/core';
-import { getClientById, getLatestRunSummaries, runClientOnce, getConfigInfo, getLatestRunDetailWithDiff } from '@geo/db';
-import RunStatusIndicator from '../../../components/run-status-indicator';
+import {
+  deleteClientKpi,
+  getClientById,
+  getConfigInfo,
+  getLatestRunDetailWithDiff,
+  getLatestRunSummaries,
+  getRunHistory,
+  listClientAnnotations,
+  listClientKpis,
+  updateClientProfile,
+  upsertClientKpi,
+  type ClientKpiUnit
+} from '@geo/db';
+import TrendChart from '../../../components/trend-chart';
+import EmptyState from '../../../components/empty-state';
+import ActionBar from '../../../components/action-bar';
 
 const SUPPORTED_SURFACES: Surface[] = ['openai', 'claude'];
 
-async function triggerRunAction(formData: FormData) {
+async function updateClientProfileAction(formData: FormData) {
   'use server';
 
   const clientId = formData.get('clientId')?.toString();
-
   if (!clientId) {
     throw new Error('Missing client ID');
   }
 
-  // Start the run asynchronously - don't await, let it run in background
-  runClientOnce({
+  const narrativeNotes = formData.get('narrativeNotes')?.toString() ?? null;
+  const reportingCadence = formData.get('reportingCadence')?.toString() ?? null;
+  const visibilityTargetRaw = formData.get('visibilityTarget')?.toString();
+  const baselineRunId = formData.get('baselineRunId')?.toString();
+
+  const visibilityTarget = visibilityTargetRaw && visibilityTargetRaw.length > 0 ? Number(visibilityTargetRaw) : null;
+
+  await updateClientProfile({
     clientId,
-    surfaces: SUPPORTED_SURFACES
-  }).catch((error) => {
-    console.error('[server action] Run failed:', error);
+    narrativeNotes,
+    reportingCadence,
+    visibilityTarget,
+    baselineRunId: baselineRunId && baselineRunId.length > 0 ? baselineRunId : null
   });
 
-  // Revalidate immediately and then periodically
   revalidatePath(`/clients/${clientId}`);
-  revalidatePath(`/clients/${clientId}/runs`);
-  revalidatePath(`/clients/${clientId}/queries`);
+}
+
+const KPI_UNITS: Array<{ value: ClientKpiUnit; label: string; suffix?: string }> = [
+  { value: 'percent', label: 'Percent', suffix: '%' },
+  { value: 'number', label: 'Number' },
+  { value: 'currency', label: 'Revenue', suffix: '$' },
+  { value: 'ratio', label: 'Ratio' }
+];
+
+async function saveKpiAction(formData: FormData) {
+  'use server';
+
+  const clientId = formData.get('clientId')?.toString();
+  if (!clientId) {
+    throw new Error('Missing client ID');
+  }
+
+  const id = formData.get('kpiId')?.toString();
+  const label = formData.get('label')?.toString();
+  const unit = formData.get('unit')?.toString() as ClientKpiUnit | undefined;
+  const description = formData.get('description')?.toString() ?? null;
+  const targetValueRaw = formData.get('targetValue')?.toString();
+  const currentValueRaw = formData.get('currentValue')?.toString();
+  const visibilityLinkRaw = formData.get('visibilityLink')?.toString();
+
+  if (!label || !unit) {
+    throw new Error('Label and unit are required');
+  }
+
+  const parseNumber = (value: string | undefined | null) => {
+    if (!value || value.length === 0) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  await upsertClientKpi({
+    id: id && id.length > 0 ? id : undefined,
+    clientId,
+    label,
+    description,
+    unit,
+    targetValue: parseNumber(targetValueRaw),
+    currentValue: parseNumber(currentValueRaw),
+    visibilityLink: parseNumber(visibilityLinkRaw)
+  });
+
+  revalidatePath(`/clients/${clientId}`);
+}
+
+async function deleteKpiAction(formData: FormData) {
+  'use server';
+
+  const clientId = formData.get('clientId')?.toString();
+  const kpiId = formData.get('kpiId')?.toString();
+
+  if (!clientId || !kpiId) {
+    throw new Error('Missing identifiers');
+  }
+
+  await deleteClientKpi(kpiId);
+  revalidatePath(`/clients/${clientId}`);
 }
 
 function formatTimestamp(value: Date | null | undefined) {
@@ -56,6 +133,9 @@ export default async function ClientInsightsPage({
   }
 
   const runs = await getLatestRunSummaries(client.id);
+  const runHistory = await getRunHistory(client.id);
+  const clientKpis = await listClientKpis(client.id);
+  const annotations = await listClientAnnotations(client.id);
 
   // Get latest run details for each surface to compute wins/losses
   const openaiDetail = await getLatestRunDetailWithDiff('openai', client.id);
@@ -94,9 +174,46 @@ export default async function ClientInsightsPage({
     : 0;
   const surfacesTracked = new Set(runs.map((run) => run.surface)).size;
 
+  const trendPoints = runHistory
+    .slice()
+    .reverse()
+    .map((run) => ({
+      date: (run.finishedAt ?? run.startedAt).toISOString(),
+      score: Number(run.overallScore.toFixed(2)),
+      visibility: Number(run.visibilityPct.toFixed(2))
+    }));
+
+  const latestFinishedRun = runHistory.find((run) => run.finishedAt);
+
+  const flaggedAnnotations = annotations.filter((annotation) =>
+    annotation.tags.some((tag) => ['risk', 'gap', 'missing_citation'].includes(tag))
+  );
+  const winAnnotations = annotations.filter((annotation) => annotation.tags.includes('win'));
+
+  const surfacesSorted = [...runs].sort((a, b) => b.visibilityPct - a.visibilityPct);
+
+  const baselineRun = client.baselineRunId
+    ? runHistory.find((run) => run.runId === client.baselineRunId) ?? null
+    : null;
+
+  const additionalSurfaces = surfacesSorted
+    .slice(1)
+    .map((surface) => `${formatSurface(surface.surface)} (${surface.visibilityPct.toFixed(1)}%)`)
+    .join(', ');
+
+  const topSurfaceSummary = surfacesSorted.length > 0
+    ? `Start with ${formatSurface(surfacesSorted[0]!.surface)} at ${surfacesSorted[0]!.visibilityPct.toFixed(1)}% visibility${
+        additionalSurfaces ? `, then compare ${additionalSurfaces} to spot gaps.` : ' to spot gaps.'
+      }`
+    : 'Launch a crawl to populate surface performance.';
+
+  const flaggedSummary =
+    flaggedAnnotations.length > 0
+      ? `There are ${flaggedAnnotations.length} open risks/gaps tagged in the query workspace.`
+      : 'No flagged annotations—log wins or gaps from the latest crawl.';
+
   return (
     <section className="flex flex-1 flex-col gap-10">
-      <RunStatusIndicator clientId={client.id} />
       <header className="page-header">
         <div className="space-y-3">
           <div className="badge">Insights</div>
@@ -110,113 +227,9 @@ export default async function ClientInsightsPage({
             </div>
           )}
         </div>
-
-        <div className="flex flex-col items-start gap-4 md:items-end">
-          <span className="rounded-full bg-white/80 px-4 py-1 text-sm text-slate-600">
-            {lastTouchpoint
-              ? `Last synced ${formatDistanceToNow(lastTouchpoint, { addSuffix: true })}`
-              : 'No runs recorded yet'}
-          </span>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <form action={triggerRunAction} className="inline-flex">
-              <input type="hidden" name="clientId" value={client.id} />
-              <button
-                className="inline-flex items-center justify-center rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-brand/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                type="submit"
-              >
-                Run crawl
-              </button>
-            </form>
-            <Link
-              className="inline-flex items-center justify-center rounded-full border border-neutral-200 px-5 py-2 text-sm font-medium text-slate-700 transition hover:border-neutral-300 hover:text-slate-900"
-              href={`/clients/${client.id}/queries`}
-            >
-              Deep-dive queries
-            </Link>
-            <Link
-              className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-5 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-neutral-800"
-              href={`/clients/${client.id}/runs`}
-            >
-              Review run history
-            </Link>
-          </div>
-        </div>
       </header>
 
-      {/* Executive Summary - Wins/Losses/Risks */}
-      {(wins.length > 0 || losses.length > 0 || risks.length > 0) && (
-        <section className="rounded-2xl border border-neutral-200 bg-white/95 p-6 shadow-card">
-          <h2 className="mb-4 text-lg font-semibold text-slate-900">What changed since last run</h2>
-          <div className="flex flex-wrap gap-3">
-            {wins.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-green-700">Top wins</span>
-                <div className="flex flex-wrap gap-2">
-                  {wins.map((query) => (
-                    <Link
-                      key={query.queryId}
-                      href={`/clients/${client.id}/queries?surface=${openaiDetail?.run.surface === 'openai' ? 'openai' : 'claude'}`}
-                      className="rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 transition hover:bg-green-100"
-                    >
-                      {query.text.substring(0, 40)}... +{query.deltas?.scoreDelta?.toFixed(1)}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-            {losses.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-red-700">Declines</span>
-                <div className="flex flex-wrap gap-2">
-                  {losses.map((query) => (
-                    <Link
-                      key={query.queryId}
-                      href={`/clients/${client.id}/queries?surface=${openaiDetail?.run.surface === 'openai' ? 'openai' : 'claude'}`}
-                      className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100"
-                    >
-                      {query.text.substring(0, 40)}... {query.deltas?.scoreDelta?.toFixed(1)}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-            {risks.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">Flags to resolve</span>
-                <div className="flex flex-wrap gap-2">
-                  {risks.map((query) => (
-                    <Link
-                      key={query.queryId}
-                      href={`/clients/${client.id}/queries?surface=${openaiDetail?.run.surface === 'openai' ? 'openai' : 'claude'}`}
-                      className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100"
-                    >
-                      {query.text.substring(0, 40)}... {query.flags.join(', ')}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="metric">
-          <span className="metric-label">Avg. visibility score</span>
-          <span className="metric-value">{runs.length ? averageScore.toFixed(1) : '—'}</span>
-          <p className="text-sm text-slate-500">A blended score across recent OpenAI and Claude crawls.</p>
-        </div>
-        <div className="metric">
-          <span className="metric-label">Share of voice</span>
-          <span className="metric-value">{runs.length ? `${averageVisibility.toFixed(1)}%` : '—'}</span>
-          <p className="text-sm text-slate-500">Average visibility percentage based on the latest crawl.</p>
-        </div>
-        <div className="metric">
-          <span className="metric-label">Surfaces monitored</span>
-          <span className="metric-value">{surfacesTracked}</span>
-          <p className="text-sm text-slate-500">OpenAI, Claude, and any additional LLMs onboarded for the client.</p>
-        </div>
-      </section>
+      <ActionBar clientId={client.id} page="insights" latestRunId={runs[0]?.runId} />
 
       <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <div className="card">
@@ -234,12 +247,11 @@ export default async function ClientInsightsPage({
 
           <div className="mt-6 space-y-4">
             {runs.length === 0 && (
-              <div className="empty-state">
-                <strong className="text-sm text-slate-600">No runs yet</strong>
-                <span>
-                  Launch a crawl to start tracking LLM visibility for this client.
-                </span>
-              </div>
+              <EmptyState
+                title="No runs yet"
+                message="Launch a crawl to start tracking LLM visibility for this client."
+                icon="📊"
+              />
             )}
 
             {runs.map((run) => (
@@ -280,13 +292,24 @@ export default async function ClientInsightsPage({
             <h2 className="text-base font-semibold text-slate-900">Team workflow</h2>
             <ul className="mt-4 space-y-3 text-sm text-slate-600">
               <li>
-                <strong className="text-slate-900">1. Review top surfaces.</strong> Confirm visibility scores and ensure coverage trends match the client narrative.
+                <strong className="text-slate-900">1. Review top surfaces.</strong> {topSurfaceSummary}
               </li>
               <li>
-                <strong className="text-slate-900">2. Audit flagged queries.</strong> Jump into the query workspace to annotate wins, risks, and missing citations.
+                <strong className="text-slate-900">2. Audit flagged queries.</strong> {flaggedSummary}
               </li>
               <li>
-                <strong className="text-slate-900">3. Package the story.</strong> Export highlights into your deck or recap email with evidence from the run detail pages.
+                <strong className="text-slate-900">3. Package the story.</strong>{' '}
+                {latestFinishedRun ? (
+                  <>
+                    Export a recap with evidence from the{' '}
+                    <Link className="inline-link" href={`/clients/${client.id}/runs`}>
+                      runs page
+                    </Link>{' '}
+                    before sending the client email.
+                  </>
+                ) : (
+                  'Run history exports unlock after your first completed crawl.'
+                )}
               </li>
             </ul>
           </div>
@@ -295,13 +318,13 @@ export default async function ClientInsightsPage({
             <h2 className="text-base font-semibold text-slate-900">Reporting shortcuts</h2>
             <div className="mt-4 space-y-3 text-sm text-slate-600">
               <p>
-                • Use <span className="font-medium text-slate-900">Run history</span> for trend charts and cadence planning.
+                • Compare <span className="font-medium text-slate-900">run cadence</span> against your reporting rhythm ({client.reportingCadence || 'set cadence above'}).
               </p>
               <p>
-                • Capture <span className="font-medium text-slate-900">query-level context</span> directly in the workspace before presenting.
+                • Attach <span className="font-medium text-slate-900">annotations</span> to highlight wins ({winAnnotations.length}) and active risks ({flaggedAnnotations.length}).
               </p>
               <p>
-                • Pair visibility % with <span className="font-medium text-slate-900">client KPIs</span> to translate LLM rankings into business outcomes.
+                • Pair <span className="font-medium text-slate-900">visibility %</span> with <span className="font-medium text-slate-900">KPIs</span> ({clientKpis.length}) to translate LLM rankings into business outcomes.
               </p>
             </div>
           </div>
@@ -310,4 +333,3 @@ export default async function ClientInsightsPage({
     </section>
   );
 }
-

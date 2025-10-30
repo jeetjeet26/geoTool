@@ -42,6 +42,37 @@ function serializeError(error: unknown): { name?: string; message: string; stack
   };
 }
 
+/**
+ * Clean up runs that have been in progress for more than 15 minutes
+ * These are likely stuck/crashed runs that never completed
+ */
+export async function cleanupStaleRuns(clientId: string): Promise<number> {
+  const staleThreshold = new Date(Date.now() - 15 * 60 * 1000); // 15 minutes ago
+
+  const result = await prisma.run.updateMany({
+    where: {
+      clientId,
+      finishedAt: null,
+      startedAt: {
+        lt: staleThreshold
+      }
+    },
+    data: {
+      finishedAt: new Date()
+    }
+  });
+
+  if (result.count > 0) {
+    console.warn('[run] Cleaned up stale runs', {
+      clientId,
+      staleRunCount: result.count,
+      thresholdMinutes: 15
+    });
+  }
+
+  return result.count;
+}
+
 function getConnector(surface: Surface): Connector {
   switch (surface) {
     case 'openai':
@@ -171,128 +202,173 @@ export async function runSurface(options: RunOptions, surface: Surface, connecto
 
   const limit = pLimit(config.RUN_DEFAULT_BATCH);
 
-  const queryResults = (await Promise.all(
-    limitedQueries.map((query) =>
-      limit(async () => {
-        const taskStart = Date.now();
-        const queryContext = {
-          ...surfaceContext,
-          runId: run.id,
-          queryId: query.id,
-          queryText: query.text
-        } as const;
-
-        console.info('[run] Query dispatched', queryContext);
-
-        const evaluationContext = {
-          brandName: client.name,
-          brandDomains: client.domains,
-          competitors: client.competitors
-        } as const;
-
-        try {
-          const result = await connector.invoke({
+  try {
+    const queryResults = (await Promise.all(
+      limitedQueries.map((query) =>
+        limit(async () => {
+          const taskStart = Date.now();
+          const queryContext = {
+            ...surfaceContext,
+            runId: run.id,
             queryId: query.id,
-            queryText: query.text,
+            queryText: query.text
+          } as const;
+
+          console.info('[run] Query dispatched', queryContext);
+
+          const evaluationContext = {
             brandName: client.name,
             brandDomains: client.domains,
             competitors: client.competitors
-          });
+          } as const;
 
-          const scored = scoreAnswer(result.answer, evaluationContext);
+          try {
+            const result = await connector.invoke({
+              queryId: query.id,
+              queryText: query.text,
+              brandName: client.name,
+              brandDomains: client.domains,
+              competitors: client.competitors
+            });
 
-          await persistQueryResult({
-            runId: run.id,
-            queryId: query.id,
-            answer: result.answer,
-            scored,
-            raw: result.raw,
-            brandDomains: client.domains
-          });
+            const scored = scoreAnswer(result.answer, evaluationContext);
 
-          console.info('[run] Query completed', {
-            ...queryContext,
-            presence: scored.presence,
-            llmRank: scored.llmRank,
-            linkRank: scored.linkRank,
-            sov: scored.sov,
-            score: scored.score,
-            durationMs: Date.now() - taskStart
-          });
+            await persistQueryResult({
+              runId: run.id,
+              queryId: query.id,
+              answer: result.answer,
+              scored,
+              raw: result.raw,
+              brandDomains: client.domains
+            });
 
-          return {
-            queryId: query.id,
-            scored
-          } satisfies QueryTaskResult;
-        } catch (error) {
-          const serialized = serializeError(error);
-          console.error('[run] Query failed, persisting fallback answer', {
-            ...queryContext,
-            error: serialized,
-            durationMs: Date.now() - taskStart
-          });
+            console.info('[run] Query completed', {
+              ...queryContext,
+              presence: scored.presence,
+              llmRank: scored.llmRank,
+              linkRank: scored.linkRank,
+              sov: scored.sov,
+              score: scored.score,
+              durationMs: Date.now() - taskStart
+            });
 
-          const answer = fallbackAnswer('Connector error');
-          const scored = scoreAnswer(answer, evaluationContext);
-          scored.flags = [...new Set([...scored.flags, 'connector_error'])];
+            return {
+              queryId: query.id,
+              scored
+            } satisfies QueryTaskResult;
+          } catch (error) {
+            const serialized = serializeError(error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            console.error('[run] Query failed, persisting fallback answer', {
+              ...queryContext,
+              error: {
+                name: error instanceof Error ? error.name : 'UnknownError',
+                message: errorMessage,
+                // Don't log full stack in production logs, but include key parts
+                summary: errorMessage.includes('404') ? 'Model not found - check model name' :
+                        errorMessage.includes('401') ? 'Authentication failed - check API key' :
+                        errorMessage.includes('429') ? 'Rate limit exceeded' :
+                        errorMessage.includes('claude-4.5') ? 'Invalid model name: use claude-sonnet-4-5' :
+                        'API call failed'
+              },
+              durationMs: Date.now() - taskStart
+            });
 
-          await persistQueryResult({
-            runId: run.id,
-            queryId: query.id,
-            answer,
-            scored,
-            raw: { error: String(error) },
-            brandDomains: client.domains
-          });
+            const answer = fallbackAnswer(`API Error: ${errorMessage.includes('404') ? 'Model not found' : errorMessage.includes('claude-4.5') ? 'Invalid model name (check .env)' : 'Connector error'}`);
+            const scored = scoreAnswer(answer, evaluationContext);
+            scored.flags = [...new Set([...scored.flags, 'connector_error'])];
 
-          console.info('[run] Query recorded with fallback', {
-            ...queryContext,
-            flags: scored.flags,
-            durationMs: Date.now() - taskStart
-          });
+            await persistQueryResult({
+              runId: run.id,
+              queryId: query.id,
+              answer,
+              scored,
+              raw: { 
+                error: {
+                  message: errorMessage,
+                  type: error instanceof Error ? error.name : 'UnknownError',
+                  summary: errorMessage.includes('404') ? 'Model not found' :
+                           errorMessage.includes('claude-4.5') ? 'Invalid model name: use claude-sonnet-4-5' :
+                           'API call failed'
+                }
+              },
+              brandDomains: client.domains
+            });
 
-          return {
-            queryId: query.id,
-            scored
-          } satisfies QueryTaskResult;
-        }
-      })
-    )
-  )) as QueryTaskResult[];
+            console.info('[run] Query recorded with fallback', {
+              ...queryContext,
+              flags: scored.flags,
+              durationMs: Date.now() - taskStart
+            });
 
-  const aggregate = aggregateScores(queryResults.map((result) => result.scored));
+            return {
+              queryId: query.id,
+              scored
+            } satisfies QueryTaskResult;
+          }
+        })
+      )
+    )) as QueryTaskResult[];
 
-  await prisma.score.create({
-    data: {
+    const aggregate = aggregateScores(queryResults.map((result) => result.scored));
+
+    await prisma.score.create({
+      data: {
+        runId: run.id,
+        overallScore: aggregate.overallScore,
+        visibilityPct: aggregate.visibilityPct,
+        details: {
+          breakdown: queryResults.map((result) => ({
+            queryId: result.queryId,
+            score: result.scored.score,
+            breakdown: result.scored.breakdown,
+            presence: result.scored.presence
+          }))
+        } as unknown as Prisma.InputJsonValue
+      }
+    });
+
+    await prisma.run.update({
+      where: { id: run.id },
+      data: {
+        finishedAt: new Date()
+      }
+    });
+
+    console.info('[run] Surface crawl completed', {
+      ...surfaceContext,
       runId: run.id,
-      overallScore: aggregate.overallScore,
-      visibilityPct: aggregate.visibilityPct,
-      details: {
-        breakdown: queryResults.map((result) => ({
-          queryId: result.queryId,
-          score: result.scored.score,
-          breakdown: result.scored.breakdown,
-          presence: result.scored.presence
-        }))
-      } as unknown as Prisma.InputJsonValue
+      aggregate,
+      durationMs: Date.now() - surfaceStart
+    });
+
+    return aggregate;
+  } catch (error) {
+    // Ensure run is marked as finished even on error
+    console.error('[run] Surface crawl failed, marking as finished', {
+      ...surfaceContext,
+      runId: run.id,
+      error: error instanceof Error ? error.message : String(error)
+    });
+
+    try {
+      await prisma.run.update({
+        where: { id: run.id },
+        data: {
+          finishedAt: new Date()
+        }
+      });
+    } catch (updateError) {
+      console.error('[run] Failed to update run finishedAt', {
+        ...surfaceContext,
+        runId: run.id,
+        error: updateError instanceof Error ? updateError.message : String(updateError)
+      });
     }
-  });
 
-  await prisma.run.update({
-    where: { id: run.id },
-    data: {
-      finishedAt: new Date()
-    }
-  });
-
-  console.info('[run] Surface crawl completed', {
-    ...surfaceContext,
-    runId: run.id,
-    aggregate,
-    durationMs: Date.now() - surfaceStart
-  });
-
-  return aggregate;
+    throw error;
+  }
 }
 
 export async function runClientOnce(options: RunOptions) {
@@ -305,16 +381,29 @@ export async function runClientOnce(options: RunOptions) {
     limit: options.limit ?? null
   });
 
-  for (const surface of options.surfaces) {
-    const connector = getConnector(surface);
-    await runSurface(options, surface, connector);
-  }
+  // Clean up any stale runs before starting new ones
+  await cleanupStaleRuns(options.clientId);
 
-  console.info('[run] Completed client crawl', {
-    clientId: options.clientId,
-    surfaces: options.surfaces,
-    durationMs: Date.now() - runStart
-  });
+  try {
+    for (const surface of options.surfaces) {
+      const connector = getConnector(surface);
+      await runSurface(options, surface, connector);
+    }
+
+    console.info('[run] Completed client crawl', {
+      clientId: options.clientId,
+      surfaces: options.surfaces,
+      durationMs: Date.now() - runStart
+    });
+  } catch (error) {
+    console.error('[run] Client crawl failed', {
+      clientId: options.clientId,
+      surfaces: options.surfaces,
+      error: error instanceof Error ? error.message : String(error),
+      durationMs: Date.now() - runStart
+    });
+    throw error;
+  }
 }
 
 export async function runAllClients({

@@ -239,9 +239,21 @@ export class OpenAIConnector implements Connector {
   surface = 'openai' as const;
 
   async invoke(context: ConnectorContext): Promise<ConnectorResult> {
+    const requestStart = Date.now();
     const config = getConfig();
     const client = new OpenAI({ apiKey: config.OPENAI_API_KEY });
     const prompt = buildPrompt(context);
+
+    console.log('[openai] ===== API Request Started =====');
+    console.log('[openai] Query ID:', context.queryId);
+    console.log('[openai] Query Text:', context.queryText);
+    console.log('[openai] Brand Name:', context.brandName);
+    console.log('[openai] Brand Domains:', context.brandDomains.join(', ') || '(none)');
+    console.log('[openai] Competitors:', context.competitors.join(', ') || '(none)');
+    console.log('[openai] Model:', config.OPENAI_MODEL);
+    console.log('[openai] Temperature:', config.TEMPERATURE);
+    console.log('[openai] Top P:', config.TOP_P);
+    console.log('[openai] Prompt Length:', prompt.length, 'characters');
 
     const requiresDefaultSampling = /^gpt-5/i.test(config.OPENAI_MODEL) || /^gpt-4\.1/i.test(config.OPENAI_MODEL);
     const requestOptions: Parameters<typeof client.chat.completions.create>[0] = {
@@ -263,15 +275,25 @@ export class OpenAIConnector implements Connector {
       }
     };
 
+    console.log('[openai] Request Options:', {
+      model: requestOptions.model,
+      stream: requestOptions.stream,
+      response_format: 'json_schema (strict)',
+      has_system_message: true,
+      user_message_length: prompt.length
+    });
+
     if (!requiresDefaultSampling) {
       requestOptions.temperature = config.TEMPERATURE;
       requestOptions.top_p = config.TOP_P;
+      console.log('[openai] Using custom sampling - Temperature:', config.TEMPERATURE, 'Top P:', config.TOP_P);
     } else {
       if (config.TEMPERATURE !== 1 || config.TOP_P !== 1) {
         console.warn(
           `[openai] Model ${config.OPENAI_MODEL} requires default sampling; ignoring temperature/top_p overrides.`
         );
       }
+      console.log('[openai] Using default sampling (model requirement)');
     }
 
     // Use Chat Completions to request strict JSON output and parse/validate
@@ -279,38 +301,170 @@ export class OpenAIConnector implements Connector {
     let parsed: AnswerBlock | null = null;
 
     try {
+      console.log('[openai] Sending request to OpenAI API...');
+      const apiRequestStart = Date.now();
+      
       const completion = await client.chat.completions.create(requestOptions);
-
+      
+      const apiRequestDuration = Date.now() - apiRequestStart;
       raw = completion;
 
       if (!('choices' in completion)) {
         throw new Error('Unexpected streaming response from OpenAI API');
       }
 
+      // Type narrowing: now TypeScript knows completion is ChatCompletion, not a Stream
+      console.log('[openai] ===== API Response Received =====');
+      console.log('[openai] API Request Duration:', apiRequestDuration, 'ms');
+      console.log('[openai] Response ID:', completion.id || 'N/A');
+      console.log('[openai] Response Model:', completion.model || config.OPENAI_MODEL);
+      console.log('[openai] Response Object:', completion.object || 'N/A');
+      console.log('[openai] Created:', completion.created || 'N/A');
+      console.log('[openai] Choices Count:', Array.isArray(completion.choices) ? completion.choices.length : 0);
+      
+      if (completion.usage) {
+        console.log('[openai] Usage - Prompt Tokens:', completion.usage.prompt_tokens || 'N/A');
+        console.log('[openai] Usage - Completion Tokens:', completion.usage.completion_tokens || 'N/A');
+        console.log('[openai] Usage - Total Tokens:', completion.usage.total_tokens || 'N/A');
+      }
+
+      const choice = completion.choices?.[0];
+      if (choice) {
+        console.log('[openai] Finish Reason:', choice.finish_reason || 'N/A');
+        console.log('[openai] Index:', choice.index || 'N/A');
+      }
+
       const content = completion.choices?.[0]?.message?.content ?? '';
+      console.log('[openai] Extracted Content Length:', content.length, 'characters');
+      console.log('[openai] Content Preview:', content.substring(0, 200), content.length > 200 ? '...' : '');
+
+      console.log('[openai] Attempting to parse JSON from response...');
       const jsonValue = tryParseJson(content);
+      
       if (jsonValue) {
+        console.log('[openai] JSON parsed successfully');
+        console.log('[openai] Parsed JSON Keys:', Object.keys(jsonValue).join(', '));
+        console.log('[openai] Ordered Entities Count:', Array.isArray(jsonValue.ordered_entities) ? jsonValue.ordered_entities.length : 0);
+        console.log('[openai] Citations Count:', Array.isArray(jsonValue.citations) ? jsonValue.citations.length : 0);
+        console.log('[openai] Answer Summary Length:', jsonValue.answer_summary?.length || 0);
+        console.log('[openai] Flags:', jsonValue.notes?.flags || []);
+
+        console.log('[openai] Attempting to coerce/validate AnswerBlock...');
         const normalized = coerceToAnswerBlock(jsonValue);
+        
         if (normalized) {
           parsed = normalized;
+          console.log('[openai] ✓ Coercion successful');
+          console.log('[openai] Validated Entities:', parsed.ordered_entities.length);
+          console.log('[openai] Validated Citations:', parsed.citations.length);
+          console.log('[openai] Validated Flags:', parsed.notes.flags.join(', ') || '(none)');
+          console.log('[openai] Answer Summary:', parsed.answer_summary.substring(0, 100) + (parsed.answer_summary.length > 100 ? '...' : ''));
+          
+          // Log entity details
+          if (parsed.ordered_entities.length > 0) {
+            console.log('[openai] Entity Details:');
+            parsed.ordered_entities.forEach((entity, idx) => {
+              console.log(`[openai]   [${idx + 1}] ${entity.name} (${entity.domain}) - Position: ${entity.position}`);
+            });
+          }
+          
+          // Log citation details
+          if (parsed.citations.length > 0) {
+            console.log('[openai] Citation Details:');
+            parsed.citations.slice(0, 5).forEach((citation, idx) => {
+              console.log(`[openai]   [${idx + 1}] ${citation.domain} - ${citation.url.substring(0, 60)}${citation.url.length > 60 ? '...' : ''}`);
+            });
+            if (parsed.citations.length > 5) {
+              console.log(`[openai]   ... and ${parsed.citations.length - 5} more citations`);
+            }
+          }
+        } else {
+          console.error('[openai] ✗ Coercion failed - JSON structure not recognized');
+          console.error('[openai] Original JSON Value:', JSON.stringify(jsonValue, null, 2));
         }
+      } else {
+        console.warn('[openai] ✗ Failed to parse JSON from content');
+        console.warn('[openai] Content Text:', content);
       }
     } catch (error) {
-      raw = { error: String(error) };
+      const errorDuration = Date.now() - requestStart;
+      console.error('[openai] ===== API Request Failed =====');
+      console.error('[openai] Error Duration:', errorDuration, 'ms');
+      
+      // Extract detailed error information for better debugging
+      let errorDetails: any = { message: String(error) };
+      
+      if (error instanceof Error) {
+        errorDetails = {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        };
+        
+        console.error('[openai] Error Name:', error.name);
+        console.error('[openai] Error Message:', error.message);
+        
+        // Try to extract API error details if available
+        if (error.message.includes('404') || error.message.includes('not_found')) {
+          errorDetails.apiError = 'Model not found - check model name format';
+          console.error('[openai] Error Type: Model not found (404)');
+        } else if (error.message.includes('401') || error.message.includes('unauthorized')) {
+          errorDetails.apiError = 'Authentication failed - check API key';
+          console.error('[openai] Error Type: Authentication failed (401)');
+        } else if (error.message.includes('429') || error.message.includes('rate_limit')) {
+          errorDetails.apiError = 'Rate limit exceeded';
+          console.error('[openai] Error Type: Rate limit exceeded (429)');
+        } else {
+          console.error('[openai] Error Type: Unknown');
+        }
+      }
+      
+      // Try to parse JSON error if present
+      try {
+        const jsonMatch = error instanceof Error ? error.message.match(/\{[\s\S]*\}/) : null;
+        if (jsonMatch) {
+          errorDetails.parsedError = JSON.parse(jsonMatch[0]);
+          console.error('[openai] Parsed Error JSON:', JSON.stringify(errorDetails.parsedError, null, 2));
+        }
+      } catch {}
+      
+      console.error('[openai] Full Error Details:', JSON.stringify(errorDetails, null, 2));
+      
+      raw = { error: errorDetails };
+      
+      console.error('[openai] API call failed', {
+        model: config.OPENAI_MODEL,
+        queryId: context.queryId,
+        error: errorDetails
+      });
     }
 
+    const totalDuration = Date.now() - requestStart;
+    console.log('[openai] ===== Request Complete =====');
+    console.log('[openai] Total Duration:', totalDuration, 'ms');
+    console.log('[openai] Success:', parsed !== null ? 'Yes' : 'No');
+    console.log('[openai] Parsed Result:', parsed ? 'Valid AnswerBlock' : 'Fallback/Error');
+
     if (!parsed) {
+      const errorMessage = raw && typeof raw === 'object' && 'error' in raw 
+        ? (raw.error as any)?.message || 'No structured sources returned'
+        : 'No structured sources returned';
+        
+      console.warn('[openai] Returning fallback answer');
+      console.warn('[openai] Fallback Message:', errorMessage);
+      
       return {
         answer: {
           ordered_entities: [],
           citations: [],
-          answer_summary: 'No structured sources returned',
+          answer_summary: errorMessage,
           notes: { flags: ['no_sources'] }
         },
         raw
       };
     }
 
+    console.log('[openai] Returning parsed answer with', parsed.ordered_entities.length, 'entities and', parsed.citations.length, 'citations');
     return { answer: parsed, raw };
   }
 }
