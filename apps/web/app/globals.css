@@ -416,8 +416,22 @@
   nav,
   header:not(.print-header),
   .action-bar,
-  button,
-  a[href]:not(.print-link) {
+  button:not(.print-keep),
+  a[href]:not(.print-link),
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Show table header text even when buttons are hidden */
+  .table th button {
+    display: inline !important;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .table th button span[aria-hidden] {
     display: none !important;
   }
 

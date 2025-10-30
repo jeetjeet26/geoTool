@@ -201,9 +201,11 @@ export default function FilteredQueriesTable({ queries, annotations = {} }: Filt
 
   return (
     <>
-      <QueryFilters queries={queries} onFilteredChange={handleFilterChange} />
+      <div className="print-hide">
+        <QueryFilters queries={queries} onFilteredChange={handleFilterChange} />
+      </div>
 
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between print-hide">
         <div className="flex items-center gap-2">
           <label className="text-xs text-slate-600">Group by:</label>
           <select
@@ -377,13 +379,15 @@ export default function FilteredQueriesTable({ queries, annotations = {} }: Filt
       </div>
 
       {groupBy === 'none' && filteredQueries.length > pageSize && (
-        <TablePagination
-          current={currentPage}
-          total={filteredQueries.length}
-          pageSize={pageSize}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={setPageSize}
-        />
+        <div className="print-hide">
+          <TablePagination
+            current={currentPage}
+            total={filteredQueries.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
       )}
     </>
   );
