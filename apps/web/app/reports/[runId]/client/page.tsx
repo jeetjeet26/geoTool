@@ -41,7 +41,7 @@ function serializeQueryRow(query: QueryRow): QueryRow {
 }
 
 // Helper to serialize annotations for client components
-function serializeAnnotations(annotations: ReturnType<typeof listClientAnnotations>) {
+function serializeAnnotations(annotations: Awaited<ReturnType<typeof listClientAnnotations>>) {
   const map = new Map<string, Array<{
     id: string;
     tags: string[];
