@@ -161,7 +161,7 @@ export default function ActionBar({ clientId, page, latestRunId }: ActionBarProp
                 }
               } : undefined}
                   className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
-                    action.primary
+                    ('primary' in action && action.primary)
                       ? 'bg-brand px-5 py-2 font-semibold text-white shadow-card hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed'
                       : 'border border-neutral-200 bg-white/80 text-slate-700 hover:border-neutral-300 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed'
                   }`}
@@ -172,19 +172,20 @@ export default function ActionBar({ clientId, page, latestRunId }: ActionBarProp
               );
             }
             
-            return (
-              <button
-                key={index}
-                onClick={action.action}
-                disabled={action.disabled}
+            if ('action' in action) {
+              return (
+                <button
+                  key={index}
+                  onClick={action.action}
+                  disabled={'disabled' in action && action.disabled}
                 className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
-                  action.primary
+                  ('primary' in action && action.primary)
                     ? 'bg-brand px-5 py-2 font-semibold text-white shadow-card hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed'
                     : 'border border-neutral-200 bg-white/80 text-slate-700 hover:border-neutral-300 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed'
                 }`}
               >
                 {action.icon && <span>{action.icon}</span>}
-                {action.loading ? (
+                {'loading' in action && action.loading ? (
                   <>
                     <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
                     <span>Generating...</span>
@@ -192,9 +193,12 @@ export default function ActionBar({ clientId, page, latestRunId }: ActionBarProp
                 ) : (
                   action.label
                 )}
-                {isRunning && action.primary && <span className="ml-2 h-2 w-2 animate-pulse rounded-full bg-white"></span>}
+                {isRunning && ('primary' in action && action.primary) && <span className="ml-2 h-2 w-2 animate-pulse rounded-full bg-white"></span>}
               </button>
-            );
+              );
+            }
+            
+            return null;
           })}
         </div>
       </div>
