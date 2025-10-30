@@ -15,7 +15,6 @@ async function generatePDF(runId: string, baseUrl: string): Promise<Buffer> {
   
   const browser = await puppeteer.default.launch({
     args: chromium.default.args,
-    defaultViewport: chromium.default.defaultViewport,
     executablePath: await chromium.default.executablePath(),
     headless: chromium.default.headless,
   });
