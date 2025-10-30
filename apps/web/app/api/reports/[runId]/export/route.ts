@@ -106,7 +106,6 @@ async function generatePDF(runId: string, baseUrl: string): Promise<Buffer> {
   } else {
     // Local development: use @sparticuz/chromium's bundled binary
     const chromium = await import('@sparticuz/chromium');
-    chromium.setGraphicsMode(false);
     
     launchOptions = {
       args: chromium.default.args,
