@@ -142,3 +142,4 @@ export default function RiskHeatmap({ data }: RiskHeatmapProps) {
   );
 }
 
+

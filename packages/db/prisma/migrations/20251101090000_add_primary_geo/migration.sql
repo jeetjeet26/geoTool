@@ -4,3 +4,4 @@ ADD COLUMN "primaryGeo" TEXT;
 
 
 
+
