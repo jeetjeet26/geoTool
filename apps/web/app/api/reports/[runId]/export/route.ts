@@ -11,110 +11,38 @@ function toPercent(value: number | null | undefined): string {
 
 async function generatePDF(runId: string, baseUrl: string): Promise<Buffer> {
   const puppeteer = await import('puppeteer-core');
-  const fs = await import('fs');
-  const { execSync } = await import('child_process');
+  const chromium = await import('@sparticuz/chromium');
   
-  // Determine launch configuration based on environment
-  let launchOptions: Parameters<typeof puppeteer.default.launch>[0];
+  // Use @sparticuz/chromium for both Heroku and local development
+  // It's designed to work in serverless environments like Heroku
+  // If CHROMIUM_PATH is explicitly set, use that instead (for custom setups)
+  let executablePath: string;
+  let args: string[];
   
-  const isHeroku = process.env.HEROKU || process.env.DYNO;
-  
-  if (isHeroku || process.env.CHROMIUM_PATH) {
-    // On Heroku, use system Chromium from buildpack (not @sparticuz/chromium's bundled binary)
-    // Try to find system Chromium in common locations
-    const possiblePaths = [
-      process.env.CHROMIUM_PATH,
-      '/app/.chromium/chromium',
-      '/app/.chromium/chrome',
-      '/usr/bin/chromium-browser',
-      '/usr/bin/chromium',
-    ].filter(Boolean) as string[];
-    
-    let executablePath: string | undefined;
-    
-    // Try to find Chromium using which command
-    if (!executablePath) {
-      const chromiumCommands = ['chromium-browser', 'chromium', 'chrome'];
-      for (const cmd of chromiumCommands) {
-        try {
-          const whichResult = execSync(`which ${cmd}`, { 
-            encoding: 'utf-8',
-            stdio: ['ignore', 'pipe', 'ignore'] // Suppress stderr
-          }).trim();
-          if (whichResult && fs.existsSync(whichResult)) {
-            executablePath = whichResult;
-            break;
-          }
-        } catch {
-          // which command failed, continue to next command
-        }
-      }
-    }
-    
-    // Check each possible path
-    for (const path of possiblePaths) {
-      try {
-        if (path && fs.existsSync(path)) {
-          executablePath = path;
-          console.log(`Found Chromium at: ${path}`);
-          break;
-        }
-      } catch {
-        // Continue to next path
-      }
-    }
-    
-    if (!executablePath) {
-      const errorMsg = `Chromium executable not found on Heroku. Checked paths: ${possiblePaths.join(', ')}. Please ensure the puppeteer-heroku-buildpack is installed and set CHROMIUM_PATH if needed.`;
-      console.error(errorMsg);
-      throw new Error(errorMsg);
-    }
-    
-    // Use Heroku-safe args (don't use @sparticuz/chromium args on Heroku)
-    launchOptions = {
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--single-process',
-        '--disable-extensions',
-        '--disable-background-networking',
-        '--disable-background-timer-throttling',
-        '--disable-renderer-backgrounding',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-breakpad',
-        '--disable-client-side-phishing-detection',
-        '--disable-default-apps',
-        '--disable-features=TranslateUI',
-        '--disable-hang-monitor',
-        '--disable-popup-blocking',
-        '--disable-prompt-on-repost',
-        '--disable-sync',
-        '--disable-translate',
-        '--metrics-recording-only',
-        '--no-first-run',
-        '--safebrowsing-disable-auto-update',
-        '--enable-automation',
-        '--password-store=basic',
-        '--use-mock-keychain',
-      ],
-      executablePath,
-      headless: true,
-    };
+  if (process.env.CHROMIUM_PATH) {
+    // Custom Chromium path specified (e.g., from a buildpack)
+    executablePath = process.env.CHROMIUM_PATH;
+    // Use Heroku-safe args when using custom path
+    args = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--disable-gpu',
+      '--single-process',
+      '--disable-extensions',
+    ];
   } else {
-    // Local development: use @sparticuz/chromium's bundled binary
-    const chromium = await import('@sparticuz/chromium');
-    
-    launchOptions = {
-      args: chromium.default.args,
-      executablePath: await chromium.default.executablePath(),
-      headless: true,
-    };
+    // Use @sparticuz/chromium's bundled binary (works on Heroku and locally)
+    executablePath = await chromium.default.executablePath();
+    args = chromium.default.args;
   }
   
-  const browser = await puppeteer.default.launch(launchOptions);
+  const browser = await puppeteer.default.launch({
+    args,
+    executablePath,
+    headless: true,
+  });
   
   try {
     const page = await browser.newPage();
