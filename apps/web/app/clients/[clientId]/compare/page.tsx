@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getClientById, getLatestRunDetailWithDiff } from '@geo/db';
 import ActionBar from '@/components/action-bar';
 import EmptyState from '@/components/empty-state';
+import DumbbellChart from '@/components/dumbbell-chart';
 
 function formatSurface(surface: string) {
   return surface.charAt(0).toUpperCase() + surface.slice(1);
@@ -135,6 +136,32 @@ export default async function ComparePage({
           <span className="metric-value">{comparisons.length}</span>
           <p className="text-sm text-slate-500">Compared across both surfaces</p>
         </div>
+      </section>
+
+      {/* Dumbbell Comparison Chart */}
+      <section className="card">
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Score comparison by query</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Visual comparison of OpenAI vs Claude scores across queries. Green indicates improvement, red indicates decline. Hover over queries to see full text and delta values.
+        </p>
+        <DumbbellChart
+          data={comparisons
+            .filter((comp) => comp.openai && comp.claude)
+            .slice(0, 20)
+            .map((comp) => ({
+              id: comp.queryId,
+              label: comp.text.length > 45 ? comp.text.substring(0, 45) + '...' : comp.text,
+              fullLabel: comp.text, // Full text for tooltip
+              left: comp.openai!.score,
+              right: comp.claude!.score,
+              leftLabel: `${comp.openai!.score.toFixed(1)}`,
+              rightLabel: `${comp.claude!.score.toFixed(1)}`
+            }))}
+          leftLabel="OpenAI Score"
+          rightLabel="Claude Score"
+          height={Math.min(comparisons.length * 20, 400)}
+          sortBy="delta"
+        />
       </section>
 
       {/* Comparison Table */}

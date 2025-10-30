@@ -19,6 +19,10 @@ import {
 import TrendChart from '../../../components/trend-chart';
 import EmptyState from '../../../components/empty-state';
 import ActionBar from '../../../components/action-bar';
+import DistributionChart from '../../../components/distribution-chart';
+import CorrelationScatter from '../../../components/correlation-scatter';
+import CalendarHeatmap from '../../../components/calendar-heatmap';
+import RiskHeatmap from '../../../components/risk-heatmap';
 
 const SUPPORTED_SURFACES: Surface[] = ['openai', 'claude'];
 
@@ -330,6 +334,132 @@ export default async function ClientInsightsPage({
           </div>
         </div>
       </section>
+
+      {/* Data Distribution & Analysis */}
+      {(openaiDetail || claudeDetail) && (
+        <section className="grid gap-6 lg:grid-cols-2">
+          <div className="card">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">Score distribution</h2>
+            <p className="mb-4 text-sm text-slate-500">
+              Distribution of query scores across the latest run to identify outliers and performance clusters.
+            </p>
+            <DistributionChart
+              values={[
+                ...(openaiDetail?.queries.map((q) => q.score) ?? []),
+                ...(claudeDetail?.queries.map((q) => q.score) ?? [])
+              ]}
+              label="Query scores"
+              bins={15}
+            />
+          </div>
+
+          <div className="card">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">Visibility vs Score correlation</h2>
+            <p className="mb-4 text-sm text-slate-500">
+              {clientKpis.length > 0
+                ? 'Explore the relationship between visibility metrics and business KPIs.'
+                : 'Explore the relationship between visibility percentage and query scores.'}
+            </p>
+            {clientKpis.length > 0 && clientKpis.some((kpi) => kpi.visibilityLink !== null) ? (
+              <CorrelationScatter
+                data={clientKpis
+                  .filter((kpi) => kpi.visibilityLink !== null && kpi.currentValue !== null)
+                  .map((kpi) => ({
+                    x: Number(kpi.visibilityLink),
+                    y: Number(kpi.currentValue),
+                    label: kpi.label,
+                    size: 6,
+                    color: '#0284c7'
+                  }))}
+                xLabel="Visibility Link"
+                yLabel="KPI Value"
+                showTrendline
+              />
+            ) : (
+              <CorrelationScatter
+                data={[
+                  ...(openaiDetail?.queries.map((q) => ({
+                    x: (q.sov ?? 0) * 100,
+                    y: q.score,
+                    label: q.text,
+                    size: 4
+                  })) ?? []),
+                  ...(claudeDetail?.queries.map((q) => ({
+                    x: (q.sov ?? 0) * 100,
+                    y: q.score,
+                    label: q.text,
+                    size: 4,
+                    color: '#10b981'
+                  })) ?? [])
+                ]}
+                xLabel="Share of Voice (%)"
+                yLabel="Score"
+                showTrendline
+              />
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Risk Heatmap */}
+      {(openaiDetail || claudeDetail) && (
+        <section className="card">
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">Risk distribution</h2>
+          <p className="mb-4 text-sm text-slate-500">
+            Heatmap showing flagged queries by query type to identify patterns in risk exposure.
+          </p>
+          <RiskHeatmap
+            data={[
+              ...(openaiDetail?.queries.flatMap((q) =>
+                q.flags.map((flag) => ({
+                  flag,
+                  queryType: q.type,
+                  count: 1,
+                  severity: flag.includes('critical') || flag.includes('high') ? 'high' : flag.includes('medium') ? 'medium' : 'low' as const
+                })) ?? []
+              ) ?? []),
+              ...(claudeDetail?.queries.flatMap((q) =>
+                q.flags.map((flag) => ({
+                  flag,
+                  queryType: q.type,
+                  count: 1,
+                  severity: flag.includes('critical') || flag.includes('high') ? 'high' : flag.includes('medium') ? 'medium' : 'low' as const
+                })) ?? []
+              ) ?? [])
+            ].reduce((acc, item) => {
+              const key = `${item.flag}-${item.queryType}`;
+              const existing = acc.find((i) => i.flag === item.flag && i.queryType === item.queryType);
+              if (existing) {
+                existing.count++;
+              } else {
+                acc.push(item);
+              }
+              return acc;
+            }, [] as Array<{ flag: string; queryType: string; count: number; severity: 'low' | 'medium' | 'high' }>)}
+          />
+        </section>
+      )}
+
+      {/* Calendar Heatmap */}
+      {runHistory.length > 0 && (
+        <section className="card">
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">Run cadence</h2>
+          <p className="mb-4 text-sm text-slate-500">
+            Calendar view of run activity over the last 90 days. Darker shades indicate more runs or higher scores.
+          </p>
+          <CalendarHeatmap
+            data={runHistory
+              .filter((run) => run.finishedAt)
+              .map((run) => ({
+                date: run.finishedAt!,
+                value: run.overallScore,
+                label: `${run.surface} - Score: ${run.overallScore.toFixed(1)}`
+              }))}
+            days={90}
+            colorScheme="blue"
+          />
+        </section>
+      )}
     </section>
   );
 }
