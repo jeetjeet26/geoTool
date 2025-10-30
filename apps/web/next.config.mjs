@@ -1,13 +1,17 @@
 const nextConfig = {
   reactStrictMode: true,
-  // Ensure server dependencies like chromium are not bundled so their
-  // runtime assets (e.g., brotli binaries) resolve from node_modules
-  serverExternalPackages: [
-    '@sparticuz/chromium',
-    'puppeteer-core'
-  ],
-  // Produce a self-contained server output that plays nicer on Heroku
-  output: 'standalone'
+  output: 'standalone',
+  experimental: {
+    // Tell Next to keep these server packages external so their runtime files are preserved
+    serverComponentsExternalPackages: ['@sparticuz/chromium', 'puppeteer-core']
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push('@sparticuz/chromium', 'puppeteer-core');
+    }
+    return config;
+  }
 };
 
 export default nextConfig;
