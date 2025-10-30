@@ -155,7 +155,7 @@ async function generatePDF(runId: string, baseUrl: string): Promise<Buffer> {
       preferCSSPageSize: false
     });
     
-    return pdfBuffer;
+    return Buffer.from(pdfBuffer);
   } finally {
     await browser.close();
   }
