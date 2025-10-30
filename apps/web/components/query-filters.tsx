@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import FilterPills from './filter-pills';
 
@@ -85,7 +85,7 @@ export default function QueryFilters({ queries, onFilteredChange }: QueryFilters
   }, [queries, typeFilter, presenceFilter, flagsFilter, sortBy]);
 
   // Notify parent of filtered results
-  useMemo(() => {
+  useEffect(() => {
     onFilteredChange?.(filteredAndSorted);
   }, [filteredAndSorted, onFilteredChange]);
 

@@ -20,7 +20,8 @@ export default function DistributionChart({
   const chart = useMemo(() => {
     if (values.length === 0) {
       return {
-        bins: [] as Array<{ min: number; max: number; count: number }>,
+        bins: [] as Array<{ min: number; max: number; count: number; index: number }>,
+        allBins: [] as Array<{ min: number; max: number; count: number; index: number }>,
         min: 0,
         max: 0,
         mean: 0,
@@ -33,10 +34,11 @@ export default function DistributionChart({
     const range = max - min || 1;
     const binWidth = range / bins;
 
-    const binData: Array<{ min: number; max: number; count: number }> = Array.from({ length: bins }, (_, i) => ({
+    const binData: Array<{ min: number; max: number; count: number; index: number }> = Array.from({ length: bins }, (_, i) => ({
       min: min + i * binWidth,
       max: min + (i + 1) * binWidth,
-      count: 0
+      count: 0,
+      index: i
     }));
 
     values.forEach((value) => {
@@ -47,6 +49,9 @@ export default function DistributionChart({
       binData[binIndex].count++;
     });
 
+    // Filter out empty bins but keep their index for proper spacing
+    const nonEmptyBins = binData.filter((bin) => bin.count > 0);
+
     const sorted = [...values].sort((a, b) => a - b);
     const median = sorted.length % 2 === 0
       ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
@@ -55,7 +60,8 @@ export default function DistributionChart({
     const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
 
     return {
-      bins: binData,
+      bins: nonEmptyBins,
+      allBins: binData, // Keep all bins for proper spacing calculation
       min,
       max,
       mean,
@@ -63,11 +69,12 @@ export default function DistributionChart({
     };
   }, [values, bins]);
 
-  const maxCount = Math.max(...chart.bins.map((b) => b.count), 1);
+  const maxCount = chart.bins.length > 0 ? Math.max(...chart.bins.map((b) => b.count), 1) : 1;
   const paddingX = 40;
   const paddingY = showStats ? 30 : 10;
   const usableWidth = 300 - paddingX * 2;
   const usableHeight = height - paddingY * 2;
+  const totalBins = chart.allBins.length || bins;
 
   if (values.length === 0) {
     return (
@@ -77,6 +84,9 @@ export default function DistributionChart({
     );
   }
 
+  // Calculate bar width based on total bins for proper spacing
+  const barWidth = usableWidth / totalBins;
+
   return (
     <div className="space-y-2">
       {label && (
@@ -84,34 +94,33 @@ export default function DistributionChart({
       )}
       <div className="relative">
         <svg width="100%" height={height} viewBox={`0 0 300 ${height}`} className="overflow-visible">
-          {/* Bars */}
-          {chart.bins.map((bin, index) => {
-            const barWidth = usableWidth / chart.bins.length;
-            const x = paddingX + index * barWidth;
+          {/* Bars - only render non-empty bins */}
+          {chart.bins.map((bin) => {
+            const x = paddingX + bin.index * barWidth;
             const barHeight = (bin.count / maxCount) * usableHeight;
             const y = paddingY + usableHeight - barHeight;
 
             return (
               <rect
-                key={index}
-                x={x}
+                key={bin.index}
+                x={x + barWidth * 0.05}
                 y={y}
                 width={barWidth * 0.9}
                 height={barHeight}
                 fill="#0284c7"
-                fillOpacity="0.6"
+                fillOpacity="0.7"
                 className="transition-opacity hover:opacity-100"
               />
             );
           })}
 
           {/* Mean line */}
-          {showStats && (
+          {showStats && chart.mean >= chart.min && chart.mean <= chart.max && (
             <line
               x1={paddingX + ((chart.mean - chart.min) / (chart.max - chart.min || 1)) * usableWidth}
-              y1={paddingY}
+              y1={paddingY - 2}
               x2={paddingX + ((chart.mean - chart.min) / (chart.max - chart.min || 1)) * usableWidth}
-              y2={paddingY + usableHeight}
+              y2={paddingY + usableHeight + 2}
               stroke="#ef4444"
               strokeWidth="2"
               strokeDasharray="4 2"
@@ -119,12 +128,12 @@ export default function DistributionChart({
           )}
 
           {/* Median line */}
-          {showStats && (
+          {showStats && chart.median >= chart.min && chart.median <= chart.max && (
             <line
               x1={paddingX + ((chart.median - chart.min) / (chart.max - chart.min || 1)) * usableWidth}
-              y1={paddingY}
+              y1={paddingY - 2}
               x2={paddingX + ((chart.median - chart.min) / (chart.max - chart.min || 1)) * usableWidth}
-              y2={paddingY + usableHeight}
+              y2={paddingY + usableHeight + 2}
               stroke="#10b981"
               strokeWidth="2"
               strokeDasharray="4 2"

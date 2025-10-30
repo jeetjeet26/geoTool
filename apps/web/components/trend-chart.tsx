@@ -9,7 +9,7 @@ type TrendPoint = {
 };
 
 type TrendChartProps = {
-  points: TrendPoint[];
+  points?: TrendPoint[];
 };
 
 const DEFAULT_CHART_WIDTH = 560; // fallback before measuring
@@ -54,6 +54,9 @@ export default function TrendChart({ points }: TrendChartProps) {
   const [hoverX, setHoverX] = useState<number | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
+  // Ensure points is always an array
+  const safePoints = points ?? [];
+
   useEffect(() => {
     if (!containerRef.current) return;
     const element = containerRef.current;
@@ -70,7 +73,7 @@ export default function TrendChart({ points }: TrendChartProps) {
   }, []);
 
   const chart = useMemo(() => {
-    if (points.length === 0) {
+    if (safePoints.length === 0) {
       return {
         scoreLine: '',
         visibilityLine: '',
@@ -82,30 +85,30 @@ export default function TrendChart({ points }: TrendChartProps) {
       };
     }
 
-    const labels = points.map((point, index) => {
+    const labels = safePoints.map((point, index) => {
       const usableWidth = chartWidth - PADDING_X * 2;
-      const x = PADDING_X + (usableWidth / Math.max(points.length - 1, 1)) * index;
+      const x = PADDING_X + (usableWidth / Math.max(safePoints.length - 1, 1)) * index;
       return {
         x,
         text: formatDateLabel(point.date)
       };
     });
 
-    const scoreValues = points.map((point) => point.score);
-    const visibilityValues = points.map((point) => point.visibility);
+    const scoreValues = safePoints.map((point) => point.score);
+    const visibilityValues = safePoints.map((point) => point.visibility);
 
     return {
-      scoreLine: createPolyline(points, 'score', chartWidth),
-      visibilityLine: createPolyline(points, 'visibility', chartWidth),
+      scoreLine: createPolyline(safePoints, 'score', chartWidth),
+      visibilityLine: createPolyline(safePoints, 'visibility', chartWidth),
       labels,
       minScore: Math.min(...scoreValues),
       maxScore: Math.max(...scoreValues),
       minVisibility: Math.min(...visibilityValues),
       maxVisibility: Math.max(...visibilityValues)
     };
-  }, [points, chartWidth]);
+  }, [safePoints, chartWidth]);
 
-  if (points.length === 0) {
+  if (safePoints.length === 0) {
     return (
       <div className="flex h-[180px] items-center justify-center rounded-xl border border-dashed border-neutral-200">
         <p className="text-sm text-slate-500">Trend data will appear after at least two runs.</p>
@@ -121,8 +124,8 @@ export default function TrendChart({ points }: TrendChartProps) {
     // find nearest point index
     const usableWidth = chartWidth - PADDING_X * 2;
     const pct = Math.max(0, Math.min(1, (x - PADDING_X) / Math.max(1, usableWidth)));
-    const idx = Math.round(pct * (Math.max(points.length - 1, 0)));
-    setHoverIndex(points.length ? Math.max(0, Math.min(points.length - 1, idx)) : null);
+    const idx = Math.round(pct * (Math.max(safePoints.length - 1, 0)));
+    setHoverIndex(safePoints.length ? Math.max(0, Math.min(safePoints.length - 1, idx)) : null);
   };
 
   const handleMouseLeave = () => {
@@ -131,7 +134,7 @@ export default function TrendChart({ points }: TrendChartProps) {
   };
 
   const guidelineX = hoverIndex !== null
-    ? (PADDING_X + ((chartWidth - PADDING_X * 2) / Math.max(points.length - 1, 1)) * hoverIndex)
+    ? (PADDING_X + ((chartWidth - PADDING_X * 2) / Math.max(safePoints.length - 1, 1)) * hoverIndex)
     : null;
 
   return (
@@ -199,10 +202,10 @@ export default function TrendChart({ points }: TrendChartProps) {
           role="status"
           aria-live="polite"
         >
-          <div className="font-medium text-slate-900">{formatDateLabel(points[hoverIndex].date)}</div>
+          <div className="font-medium text-slate-900">{formatDateLabel(safePoints[hoverIndex].date)}</div>
           <div className="mt-0.5 flex items-center gap-2">
-            <span className="inline-flex h-2 w-2 rounded-full bg-slate-900" /> {points[hoverIndex].score.toFixed(1)}
-            <span className="inline-flex h-2 w-2 rounded-full bg-sky-500" /> {points[hoverIndex].visibility.toFixed(1)}%
+            <span className="inline-flex h-2 w-2 rounded-full bg-slate-900" /> {safePoints[hoverIndex].score.toFixed(1)}
+            <span className="inline-flex h-2 w-2 rounded-full bg-sky-500" /> {safePoints[hoverIndex].visibility.toFixed(1)}%
           </div>
         </div>
       )}

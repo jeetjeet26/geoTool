@@ -427,7 +427,7 @@ function buildQueryRows(raw: any[]): QueryRow[] {
       presence: item.presence,
       llmRank: item.llmRank,
       linkRank: item.linkRank,
-      sov: item.sov,
+      sov: item.sov !== null && item.sov !== undefined ? Number(item.sov) : null,
       flags: item.flags ?? [],
       score: rawJson?.score?.score ?? 0,
       breakdown: rawJson?.score?.breakdown ?? {
@@ -453,7 +453,7 @@ function attachDeltas(current: QueryRow[], previous: QueryRow[]): QueryRow[] {
           presenceDelta: row.presence ? 1 : 0,
           llmRankDelta: row.llmRank !== null ? -row.llmRank : null,
           linkRankDelta: row.linkRank !== null ? -row.linkRank : null,
-          sovDelta: row.sov,
+        sovDelta: row.sov !== null ? Number(row.sov) : null,
           scoreDelta: row.score
         }
       };
@@ -477,9 +477,9 @@ function attachDeltas(current: QueryRow[], previous: QueryRow[]): QueryRow[] {
             : null,
         sovDelta:
           row.sov !== null && prev.sov !== null
-            ? row.sov - prev.sov
+            ? Number(row.sov) - Number(prev.sov)
             : row.sov !== null && prev.sov === null
-            ? row.sov
+            ? Number(row.sov)
             : null,
         scoreDelta:
           row.score !== null && prev.score !== null

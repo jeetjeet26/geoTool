@@ -103,3 +103,364 @@
     @apply flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-neutral-300 bg-white/80 p-10 text-center text-sm text-slate-500;
   }
 }
+
+/* Print-specific styles for PDF reports */
+@media print {
+  @page {
+    size: letter;
+    margin: 0.75in;
+  }
+
+  body {
+    background: white;
+    background-image: none;
+  }
+
+  .app-shell {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .app-shell header,
+  .app-shell footer {
+    display: none !important;
+  }
+
+  .app-shell main {
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-report {
+    max-width: 100%;
+  }
+
+  .print-page-break {
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  .print-page-break:last-child {
+    page-break-after: auto;
+  }
+
+  .cover-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  .cover-content {
+    text-align: center;
+  }
+
+  .cover-title {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #0f172a;
+  }
+
+  .cover-subtitle {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: #475569;
+    margin-bottom: 2rem;
+  }
+
+  .cover-meta {
+    font-size: 0.875rem;
+    color: #64748b;
+    line-height: 1.75;
+  }
+
+  .section-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .summary-card {
+    padding: 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    background: #f8fafc;
+  }
+
+  .summary-card h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #0f172a;
+  }
+
+  .metric-large {
+    margin-bottom: 1rem;
+  }
+
+  .metric-large .metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  .metric-large .metric-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .insights-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .insights-list li {
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .insights-list li:last-child {
+    border-bottom: none;
+  }
+
+  .model-header {
+    margin-bottom: 2rem;
+  }
+
+  .model-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+  }
+
+  .model-metrics .metric {
+    border: none;
+    padding: 0;
+    background: transparent;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .model-metrics .metric-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+  }
+
+  .model-metrics .metric-value {
+    font-size: 1.25rem;
+    color: #0f172a;
+  }
+
+  .chart-section {
+    margin-bottom: 2rem;
+    page-break-inside: avoid;
+  }
+
+  .chart-section h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #0f172a;
+  }
+
+  .comparison-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .comparison-metric {
+    padding: 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    background: #f8fafc;
+    text-align: center;
+  }
+
+  .comparison-label {
+    display: block;
+    font-size: 0.75rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .comparison-value {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.25rem;
+  }
+
+  .comparison-detail {
+    display: block;
+    font-size: 0.875rem;
+    color: #64748b;
+  }
+
+  .disagreements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .disagreement-item {
+    padding: 1rem;
+    border: 1px solid #fef3c7;
+    border-radius: 0.5rem;
+    background: #fffbeb;
+  }
+
+  .disagreement-query {
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 0.5rem;
+  }
+
+  .disagreement-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    color: #64748b;
+  }
+
+  .recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .recommendation-card {
+    padding: 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    background: #f8fafc;
+  }
+
+  .recommendation-card h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #0f172a;
+  }
+
+  .recommendation-card ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+    margin: 0;
+  }
+
+  .recommendation-card li {
+    padding: 0.25rem 0;
+    color: #475569;
+    font-size: 0.875rem;
+  }
+
+  .appendix-section {
+    margin-bottom: 2rem;
+    page-break-inside: avoid;
+  }
+
+  .appendix-section h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #0f172a;
+  }
+
+  .appendix-section p {
+    color: #475569;
+    font-size: 0.875rem;
+    line-height: 1.75;
+  }
+
+  .appendix-section ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+    color: #475569;
+    font-size: 0.875rem;
+  }
+
+  .appendix-section li {
+    padding: 0.25rem 0;
+  }
+
+  /* Hide navigation and UI elements */
+  nav,
+  header:not(.print-header),
+  .action-bar,
+  button,
+  a[href]:not(.print-link) {
+    display: none !important;
+  }
+
+  /* Hide Next.js error overlays and development indicators */
+  [data-nextjs-dialog],
+  [data-nextjs-dialog-overlay],
+  [data-nextjs-toast],
+  #__next-build-watcher,
+  #__next-dev-overlay,
+  [id^="__nextjs"],
+  [id*="error-overlay"],
+  [class*="__nextjs"],
+  [class*="react-error-overlay"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+
+  /* Hide error badges/buttons that appear as overlays (not content errors) */
+  button[class*="error"],
+  [role="dialog"][class*="error"],
+  [role="alert"][class*="error"]:not(.recommendation-card):not(.disagreement-item) {
+    display: none !important;
+  }
+
+  /* Ensure charts are visible */
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Table optimizations */
+  .table-wrapper {
+    overflow: visible;
+    border: 1px solid #e2e8f0;
+  }
+
+  .table {
+    font-size: 0.75rem;
+  }
+
+  .table th,
+  .table td {
+    padding: 0.5rem;
+  }
+}

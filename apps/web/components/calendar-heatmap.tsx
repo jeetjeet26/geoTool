@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 
 type CalendarHeatmapProps = {
-  data: Array<{ date: Date; value: number; label?: string }>;
+  data: Array<{ date: Date | string; value: number; label?: string }>;
   days?: number;
   colorScheme?: 'blue' | 'green' | 'red';
 };
@@ -19,7 +19,8 @@ export default function CalendarHeatmap({
 
     const dateMap = new Map<string, { value: number; label?: string }>();
     data.forEach((item) => {
-      const key = item.date.toISOString().split('T')[0];
+      const date = item.date instanceof Date ? item.date : new Date(item.date);
+      const key = date.toISOString().split('T')[0];
       dateMap.set(key, { value: item.value, label: item.label });
     });
 
@@ -89,11 +90,11 @@ export default function CalendarHeatmap({
               rx="2"
               className="transition-opacity hover:opacity-80"
             >
-              {square.label && (
-                <title>
-                  {square.date.toLocaleDateString()}: {square.label} ({square.value})
-                </title>
-              )}
+              <title>
+                {square.label
+                  ? `${square.date.toLocaleDateString()}: ${square.label} (${square.value})`
+                  : `${square.date.toLocaleDateString()}: ${square.value ?? 0}`}
+              </title>
             </rect>
           );
         })}
