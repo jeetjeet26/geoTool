@@ -284,11 +284,11 @@ export default async function ClientReportPage({
                       flag,
                       queryType: q.type,
                       count: 1,
-                      severity: (flag.includes('critical') || flag.includes('high')
+                      severity: ((flag.includes('critical') || flag.includes('high')
                         ? 'high'
                         : flag.includes('medium')
                           ? 'medium'
-                          : 'low') as const
+                          : 'low') as 'low' | 'medium' | 'high')
                     }))
                   )
                   .reduce((acc, item) => {
@@ -360,11 +360,11 @@ export default async function ClientReportPage({
                       flag,
                       queryType: q.type,
                       count: 1,
-                      severity: (flag.includes('critical') || flag.includes('high')
+                      severity: ((flag.includes('critical') || flag.includes('high')
                         ? 'high'
                         : flag.includes('medium')
                           ? 'medium'
-                          : 'low') as const
+                          : 'low') as 'low' | 'medium' | 'high')
                     }))
                   )
                   .reduce((acc, item) => {
