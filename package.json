@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "pnpm -r build",
-    "heroku-postbuild": "pnpm --filter @geo/db prisma generate && pnpm -r build",
+    "heroku-postbuild": "cd packages/db && pnpm prisma generate && cd ../.. && pnpm -r build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "format": "pnpm -r format",
