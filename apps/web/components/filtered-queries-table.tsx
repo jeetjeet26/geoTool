@@ -339,7 +339,7 @@ export default function FilteredQueriesTable({ queries, annotations = {} }: Filt
           </thead>
           <tbody className="divide-y divide-neutral-100">
             {groupBy === 'none' ? (
-              paginatedQueries.map((query) => (
+              (paginatedQueries as QueryRow[]).map((query) => (
                 <TableRow key={query.queryId} query={query} annotations={annotations} />
               ))
             ) : (
