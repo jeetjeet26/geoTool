@@ -1,11 +1,13 @@
 import type { Prisma, QueryTypeEnum } from '@prisma/client';
 
 import type { Surface } from '@geo/core';
+import { getConfig } from '@geo/core';
 
 import { prisma } from './index.js';
 
 export type RunSummary = {
   runId: string;
+  clientId: string;
   surface: Surface;
   modelName: string;
   startedAt: Date;
@@ -72,14 +74,6 @@ export type RunDetail = {
   queries: QueryRow[];
 };
 
-async function getClient(clientId?: string) {
-  if (clientId) {
-    return prisma.client.findUnique({ where: { id: clientId } });
-  }
-
-  return prisma.client.findFirst();
-}
-
 function mapClientRecord(client: any): ClientRecord {
   return {
     id: client.id,
@@ -110,6 +104,12 @@ export async function listClients(): Promise<ClientRecord[]> {
   });
 
   return clients.map(mapClientRecord);
+}
+
+export async function getClientById(clientId: string): Promise<ClientRecord | null> {
+  const client = await prisma.client.findUnique({ where: { id: clientId } });
+
+  return client ? mapClientRecord(client) : null;
 }
 
 interface GenerateQueryOptions {
@@ -259,9 +259,8 @@ export async function deleteClientQuery(queryId: string): Promise<void> {
   await prisma.query.delete({ where: { id: queryId } });
 }
 
-export async function getLatestRunSummaries(clientId?: string): Promise<RunSummary[]> {
-  const client = await getClient(clientId);
-  if (!client) {
+export async function getLatestRunSummaries(clientId: string): Promise<RunSummary[]> {
+  if (!clientId) {
     return [];
   }
 
@@ -270,7 +269,7 @@ export async function getLatestRunSummaries(clientId?: string): Promise<RunSumma
   const runs = await Promise.all(
     surfaces.map((surface) =>
       prisma.run.findFirst({
-        where: { clientId: client.id, surface },
+        where: { clientId, surface },
         orderBy: { startedAt: 'desc' },
         include: {
           scores: {
@@ -288,6 +287,7 @@ export async function getLatestRunSummaries(clientId?: string): Promise<RunSumma
       const score = run.scores[0];
       return {
         runId: run.id,
+        clientId: run.clientId,
         surface: run.surface as Surface,
         modelName: run.modelName,
         startedAt: run.startedAt,
@@ -370,6 +370,7 @@ function attachDeltas(current: QueryRow[], previous: QueryRow[]): QueryRow[] {
 function toRunSummary(run: any): RunSummary {
   return {
     runId: run.id,
+    clientId: run.clientId,
     surface: run.surface as Surface,
     modelName: run.modelName,
     startedAt: run.startedAt,
@@ -461,17 +462,13 @@ export async function getRunDetailWithDiffById(runId: string): Promise<RunDetail
   };
 }
 
-export async function getLatestRunDetailWithDiff(
-  surface: Surface,
-  clientId?: string
-): Promise<RunDetail | null> {
-  const client = await getClient(clientId);
-  if (!client) {
+export async function getLatestRunDetailWithDiff(surface: Surface, clientId: string): Promise<RunDetail | null> {
+  if (!clientId) {
     return null;
   }
 
   const runs = await prisma.run.findMany({
-    where: { clientId: client.id, surface },
+    where: { clientId, surface },
     orderBy: { startedAt: 'desc' },
     take: 2,
     include: {
@@ -507,14 +504,13 @@ export async function getLatestRunDetailWithDiff(
   };
 }
 
-export async function getRunHistory(clientId?: string): Promise<RunSummary[]> {
-  const client = await getClient(clientId);
-  if (!client) {
+export async function getRunHistory(clientId: string): Promise<RunSummary[]> {
+  if (!clientId) {
     return [];
   }
 
   const runs = await prisma.run.findMany({
-    where: { clientId: client.id },
+    where: { clientId },
     orderBy: { startedAt: 'desc' },
     include: {
       scores: {
@@ -525,4 +521,34 @@ export async function getRunHistory(clientId?: string): Promise<RunSummary[]> {
   });
 
   return runs.map((run) => toRunSummary(run));
+}
+
+export async function getActiveRuns(clientId: string): Promise<RunSummary[]> {
+  if (!clientId) {
+    return [];
+  }
+
+  const runs = await prisma.run.findMany({
+    where: {
+      clientId,
+      finishedAt: null
+    },
+    orderBy: { startedAt: 'desc' },
+    include: {
+      scores: {
+        orderBy: { createdAt: 'desc' },
+        take: 1
+      }
+    }
+  });
+
+  return runs.map((run) => toRunSummary(run));
+}
+
+export function getConfigInfo() {
+  const config = getConfig();
+  return {
+    openaiModel: config.OPENAI_MODEL,
+    anthropicModel: config.ANTHROPIC_MODEL
+  };
 }

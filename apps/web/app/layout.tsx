@@ -1,9 +1,5 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { Suspense } from 'react';
-
-import MainNav from '../components/main-nav';
-import ClientActions from '../components/client-actions';
 import Link from 'next/link';
 import './globals.css';
 
@@ -36,15 +32,6 @@ export default function RootLayout({
                   </span>
                 </div>
               </Link>
-
-              <div className="flex flex-col-reverse items-start gap-4 sm:flex-row sm:items-center">
-                <Suspense fallback={null}>
-                  <MainNav />
-                </Suspense>
-                <Suspense fallback={null}>
-                  <ClientActions />
-                </Suspense>
-              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">

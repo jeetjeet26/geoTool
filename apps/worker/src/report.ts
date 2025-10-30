@@ -7,6 +7,8 @@ import { config as loadEnv } from 'dotenv';
 import { getRunDetailWithDiffById, prisma } from '@geo/db';
 import type { QueryRow, RunDetail } from '@geo/db';
 
+import { isDirectCliInvocation } from './utils/is-direct-invoke.js';
+
 loadEnv();
 
 interface ReportOptions {
@@ -164,7 +166,7 @@ export async function generateReport(): Promise<void> {
   console.log(`Report generated:\n- ${files.mdPath}\n- ${files.htmlPath}`);
 }
 
-if (process.argv[1] === new URL(import.meta.url).pathname) {
+if (isDirectCliInvocation(import.meta.url, process.argv[1])) {
   generateReport()
     .catch((error) => {
       console.error('Report generation failed', error);

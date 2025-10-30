@@ -6,10 +6,10 @@ const ConfigSchema = z.object({
   DATABASE_URL: z.string().url('DATABASE_URL must be a valid URL'),
   RUN_DEFAULT_BATCH: z.coerce.number().int().positive().default(40),
   RUN_SEED: z.coerce.number().int().default(42),
-  TEMPERATURE: z.coerce.number().min(0).max(1).default(0),
+  TEMPERATURE: z.coerce.number().min(0).max(1).default(1),
   TOP_P: z.coerce.number().min(0).max(1).default(1),
-  OPENAI_MODEL: z.string().min(1).default('gpt-5'),
-  ANTHROPIC_MODEL: z.string().min(1).default('claude-4.5')
+  OPENAI_MODEL: z.string().min(1).default('gpt-4o-mini'),
+  ANTHROPIC_MODEL: z.string().min(1).default('claude-3-haiku-20240307')
 });
 
 type Config = z.infer<typeof ConfigSchema>;

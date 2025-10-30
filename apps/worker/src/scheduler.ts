@@ -4,6 +4,7 @@ import { prisma } from '@geo/db';
 import type { Surface } from '@geo/core';
 
 import { runClientOnce } from './orchestrator.js';
+import { isDirectCliInvocation } from './utils/is-direct-invoke.js';
 
 loadEnv();
 
@@ -76,7 +77,7 @@ export async function scheduleRuns(): Promise<void> {
   }
 }
 
-if (process.argv[1] === new URL(import.meta.url).pathname) {
+if (isDirectCliInvocation(import.meta.url, process.argv[1])) {
   scheduleRuns()
     .catch((error) => {
       console.error('Scheduler failed', error);

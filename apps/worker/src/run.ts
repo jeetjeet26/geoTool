@@ -3,6 +3,7 @@ import { config as loadEnv } from 'dotenv';
 import { prisma } from '@geo/db';
 import { runClientOnce, type RunOptions } from './orchestrator.js';
 import type { Surface } from '@geo/core';
+import { isDirectCliInvocation } from './utils/is-direct-invoke.js';
 
 loadEnv();
 
@@ -40,10 +41,12 @@ function parseArgs(argv: string[]): RunOptions {
 
 export async function runOnce(): Promise<void> {
   const options = parseArgs(process.argv);
+  console.info('[cli] Parsed run options', options);
   await runClientOnce(options);
+  console.info('[cli] Run completed successfully', { clientId: options.clientId });
 }
 
-if (process.argv[1] === new URL(import.meta.url).pathname) {
+if (isDirectCliInvocation(import.meta.url, process.argv[1])) {
   runOnce()
     .catch((error) => {
       console.error('Run failed', error);
