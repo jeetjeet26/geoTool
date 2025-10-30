@@ -195,7 +195,7 @@ export default function TrendChart({ points }: TrendChartProps) {
         ))}
       </svg>
 
-      {hoverIndex !== null && (
+      {hoverIndex !== null && safePoints[hoverIndex] && (
         <div
           className="pointer-events-none absolute -translate-x-1/2 rounded-md border border-neutral-200 bg-white/95 px-2 py-1 text-xs text-slate-700 shadow-md"
           style={{ left: guidelineX ?? 0, top: 8 }}
