@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "pnpm -r build",
-    "heroku-postbuild": "cd packages/db && npx prisma generate --schema=./prisma/schema.prisma && cd ../.. && pnpm -r build && mkdir -p pw-browsers && PLAYWRIGHT_BROWSERS_PATH=$PWD/pw-browsers pnpm --filter web exec playwright install chromium",
+    "heroku-postbuild": "cd packages/db && npx prisma generate --schema=./prisma/schema.prisma && cd ../.. && pnpm -r build && cd apps/web && npx playwright install chromium && cd ../..",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "format": "pnpm -r format",
