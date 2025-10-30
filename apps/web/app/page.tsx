@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation';
 import { createClient, listClients } from '@geo/db';
 import { normalizeDomain } from '@geo/core';
 
+export const dynamic = 'force-dynamic';
+
 function parseList(input: string | null): string[] {
   if (!input) return [];
 
