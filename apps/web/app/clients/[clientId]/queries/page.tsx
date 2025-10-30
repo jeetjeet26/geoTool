@@ -407,7 +407,7 @@ export default async function ClientQueriesPage({
                     <span className="flex items-center gap-2">
                       Log annotation
                       <span className="text-xs font-normal text-slate-500">
-                        ({Object.keys(annotationsByQuery).filter((id) => annotationsByQuery[id]?.length > 0).length} queries with notes)
+                        ({Object.keys(annotationsByQuery).filter((id) => (annotationsByQuery[id]?.length ?? 0) > 0).length} queries with notes)
                       </span>
                     </span>
                   </summary>
