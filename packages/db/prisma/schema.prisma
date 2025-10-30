@@ -1,0 +1,106 @@
+// This schema models the MVP entities for the LLM SERP tracker.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SurfaceEnum {
+  openai
+  claude
+}
+
+enum QueryTypeEnum {
+  branded
+  category
+  comparison
+  local
+  faq
+}
+
+model Client {
+  id           String   @id @default(uuid())
+  name         String
+  domains      String[]
+  competitors  String[]
+  primaryGeo   String?
+  queries      Query[]
+  runs         Run[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Query {
+  id        String        @id @default(uuid())
+  client    Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  text      String
+  type      QueryTypeEnum
+  geo       String?
+  weight    Decimal?      @default(1)
+  answers   Answer[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([clientId])
+}
+
+model Run {
+  id         String       @id @default(uuid())
+  client     Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId   String
+  surface    SurfaceEnum
+  modelName  String
+  startedAt  DateTime     @default(now())
+  finishedAt DateTime?
+  answers    Answer[]
+  scores     Score[]
+
+  @@index([clientId, startedAt])
+}
+
+model Answer {
+  id         String   @id @default(uuid())
+  run        Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId      String
+  query      Query    @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  queryId    String
+  presence   Boolean
+  llmRank    Int?
+  linkRank   Int?
+  sov        Decimal?
+  flags      Json
+  rawJson    Json
+  citations  Citation[]
+  createdAt  DateTime @default(now())
+
+  @@index([runId, queryId])
+}
+
+model Citation {
+  id             String  @id @default(uuid())
+  answer         Answer  @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  answerId       String
+  url            String
+  domain         String
+  isBrandDomain  Boolean @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([domain])
+}
+
+model Score {
+  id            String  @id @default(uuid())
+  run           Run     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId         String
+  overallScore  Decimal
+  visibilityPct Decimal
+  details       Json?
+  createdAt     DateTime @default(now())
+
+  @@index([runId])
+}

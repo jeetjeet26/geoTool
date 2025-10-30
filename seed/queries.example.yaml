@@ -1,0 +1,24 @@
+client: "Acme Dental"
+domains:
+  - acmedental.com
+  - acme-dental.com
+competitors:
+  - smileco.com
+  - dentistryplus.com
+queries:
+  - text: "who is Acme Dental"
+    type: branded
+    weight: 1
+  - text: "is Acme Dental good for family dentistry"
+    type: branded
+    weight: 1
+  - text: "best dentists in seattle"
+    type: category
+    geo: "seattle wa"
+    weight: 1.5
+  - text: "Acme Dental vs SmileCo"
+    type: comparison
+  - text: "dentist near capitol hill"
+    type: local
+  - text: "what is the price of teeth cleaning in seattle"
+    type: faq

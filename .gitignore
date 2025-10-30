@@ -1,0 +1,14 @@
+node_modules/
+.pnpm-store/
+.pnp.cjs
+.pnp.loader.mjs
+.next/
+.env
+.env*.local
+.prisma/
+coverage/
+dist/
+build/
+.DS_Store
+.idea/
+.vscode/

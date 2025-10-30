@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --background: 247 247 251;
+  --muted: 100 116 139;
+  --border: 228 232 240;
+}
+
+@layer base {
+  * {
+    @apply antialiased;
+  }
+
+  body {
+    @apply min-h-screen bg-slate-25 text-slate-900;
+    background-image: radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.08), transparent 55%),
+      radial-gradient(circle at 100% 0%, rgba(124, 58, 237, 0.08), transparent 45%);
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 pb-10 pt-8 md:px-10;
+  }
+
+  .page-header {
+    @apply flex flex-col gap-4 border-b border-neutral-200 pb-6 md:flex-row md:items-end md:justify-between;
+  }
+
+  .page-title {
+    @apply text-3xl font-semibold text-slate-900;
+  }
+
+  .page-subtitle {
+    @apply max-w-2xl text-base text-slate-600;
+  }
+
+  .card {
+    @apply rounded-2xl border border-neutral-200 bg-white/95 p-6 shadow-card transition-shadow duration-150 hover:shadow-lg;
+  }
+
+  .metric {
+    @apply flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white/80 p-5 transition-transform duration-150 hover:-translate-y-1 hover:shadow-card;
+  }
+
+  .metric-label {
+    @apply text-sm font-medium uppercase tracking-wide text-slate-500;
+  }
+
+  .metric-value {
+    @apply text-3xl font-semibold text-slate-900;
+  }
+
+  .metric-delta {
+    @apply text-sm font-medium;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full border border-brand/30 bg-brand-subtle px-3 py-1 text-xs font-medium uppercase tracking-wide text-brand;
+  }
+
+  .surface-chip {
+    @apply inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1 text-sm font-medium capitalize text-slate-700;
+  }
+
+  .table-wrapper {
+    @apply overflow-hidden rounded-2xl border border-neutral-200 bg-white/95 shadow-card;
+  }
+
+  .table {
+    @apply min-w-full divide-y divide-neutral-200 text-sm;
+  }
+
+  .table thead {
+    @apply bg-slate-25;
+  }
+
+  .table th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600;
+  }
+
+  .table td {
+    @apply px-4 py-3 align-top text-sm text-slate-700;
+  }
+
+  .inline-link {
+    @apply text-sm font-medium text-brand underline-offset-4 transition-colors hover:text-brand-bold hover:underline;
+  }
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-neutral-300 bg-white/80 p-10 text-center text-sm text-slate-500;
+  }
+}

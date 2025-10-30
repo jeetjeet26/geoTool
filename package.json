@@ -1,0 +1,15 @@
+{
+  "name": "llm-serp-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "format": "pnpm -r format",
+    "run:once": "pnpm --filter worker run once",
+    "seed": "pnpm --filter @geo/db seed"
+  }
+}
