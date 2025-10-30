@@ -152,7 +152,7 @@ export default function ActionBar({ clientId, page, latestRunId }: ActionBarProp
                 <Link
                   key={index}
                   href={action.href}
-                  download={action.download}
+                  {...(action.download !== undefined && { download: action.download })}
               onClick={action.scroll ? (e) => {
                 e.preventDefault();
                 const target = document.querySelector(action.href!);
