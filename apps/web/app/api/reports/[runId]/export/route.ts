@@ -10,8 +10,15 @@ function toPercent(value: number | null | undefined): string {
 }
 
 async function generatePDF(runId: string, baseUrl: string): Promise<Buffer> {
-  const { chromium } = await import('playwright');
-  const browser = await chromium.launch({ headless: true });
+  const puppeteer = await import('puppeteer-core');
+  const chromium = await import('@sparticuz/chromium');
+  
+  const browser = await puppeteer.default.launch({
+    args: chromium.default.args,
+    defaultViewport: chromium.default.defaultViewport,
+    executablePath: await chromium.default.executablePath(),
+    headless: chromium.default.headless,
+  });
   
   try {
     const page = await browser.newPage();
@@ -31,7 +38,7 @@ async function generatePDF(runId: string, baseUrl: string): Promise<Buffer> {
       errors.push(error.message);
     });
     
-    await page.goto(reportUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(reportUrl, { waitUntil: 'networkidle0', timeout: 30000 });
     
     // Wait for React to hydrate and render
     await page.waitForSelector('.print-report', { timeout: 10000 }).catch(() => {

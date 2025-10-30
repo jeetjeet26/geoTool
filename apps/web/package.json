@@ -12,12 +12,12 @@
   "dependencies": {
     "@geo/core": "workspace:*",
     "@geo/db": "workspace:*",
-    "@playwright/test": "^1.56.1",
+    "@sparticuz/chromium": "^141.0.0",
     "@tanstack/react-table": "^8.11.0",
     "@tanstack/react-virtual": "^3.4.0",
     "date-fns": "^3.6.0",
     "next": "^14.2.3",
-    "playwright": "^1.56.1",
+    "puppeteer-core": "^24.27.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "swr": "^2.2.0"
