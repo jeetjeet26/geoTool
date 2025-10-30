@@ -29,7 +29,7 @@ export default function UnifiedNav({ clientId }: UnifiedNavProps) {
   const isClientContext = activeClientId && pathname.startsWith(`/clients/${activeClientId}`);
   const navItems = isClientContext ? CLIENT_NAV_ITEMS : GLOBAL_NAV_ITEMS;
 
-  const isActive = (itemPath: string) => {
+  const isActive = (itemPath: string | ((id: string) => string)) => {
     if (isClientContext) {
       // For client pages, match exact path or starts with
       const fullPath = typeof itemPath === 'function' ? itemPath(activeClientId) : itemPath;
@@ -39,10 +39,11 @@ export default function UnifiedNav({ clientId }: UnifiedNavProps) {
       return pathname.startsWith(fullPath);
     } else {
       // For global pages
-      if (itemPath === '/') {
+      const pathStr = typeof itemPath === 'string' ? itemPath : '/';
+      if (pathStr === '/') {
         return pathname === '/';
       }
-      return pathname.startsWith(itemPath);
+      return pathname.startsWith(pathStr);
     }
   };
 
