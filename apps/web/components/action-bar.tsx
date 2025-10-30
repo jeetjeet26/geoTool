@@ -54,6 +54,11 @@ export default function ActionBar({ clientId, page, latestRunId }: ActionBarProp
     setRunTriggered(false);
   };
 
+  const handleRunCompleted = () => {
+    // Refresh the page when a run completes to show new results
+    router.refresh();
+  };
+
   const handleExportPdf = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!latestRunId || isExportingPdf) return;
@@ -221,7 +226,7 @@ export default function ActionBar({ clientId, page, latestRunId }: ActionBarProp
           <span className="text-xs text-blue-700">This may take a few moments</span>
         </div>
       )}
-      <RunStatusIndicator clientId={clientId} onRunDetected={handleRunDetected} />
+      <RunStatusIndicator clientId={clientId} onRunDetected={handleRunDetected} onRunCompleted={handleRunCompleted} />
     </div>
   );
 }

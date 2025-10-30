@@ -15,10 +15,12 @@ type ActiveRun = {
 type RunStatusIndicatorProps = {
   clientId: string;
   onRunDetected?: () => void;
+  onRunCompleted?: () => void;
 };
 
-export default function RunStatusIndicator({ clientId, onRunDetected }: RunStatusIndicatorProps) {
+export default function RunStatusIndicator({ clientId, onRunDetected, onRunCompleted }: RunStatusIndicatorProps) {
   const [activeRuns, setActiveRuns] = useState<ActiveRun[]>([]);
+  const [previousRunCount, setPreviousRunCount] = useState(0);
 
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
@@ -38,6 +40,12 @@ export default function RunStatusIndicator({ clientId, onRunDetected }: RunStatu
           onRunDetected();
         }
         
+        // If we had active runs and now we don't, a run just completed
+        if (previousRunCount > 0 && runs.length === 0 && onRunCompleted) {
+          onRunCompleted();
+        }
+        
+        setPreviousRunCount(runs.length);
         setActiveRuns(runs);
 
         // Continue polling if there are active runs
@@ -63,7 +71,7 @@ export default function RunStatusIndicator({ clientId, onRunDetected }: RunStatu
         clearInterval(pollInterval);
       }
     };
-  }, [clientId, onRunDetected, activeRuns.length]);
+  }, [clientId, onRunDetected, onRunCompleted, activeRuns.length, previousRunCount]);
 
   if (activeRuns.length === 0) {
     return null;
