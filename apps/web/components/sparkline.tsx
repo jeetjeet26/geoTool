@@ -44,6 +44,7 @@ export default function Sparkline({
     const coords = path.split(' ').map((p) => p.split(',').map(Number));
     const first = coords[0];
     const last = coords[coords.length - 1];
+    if (!first || !last) return '';
     return `${path} L ${last[0]},${height} L ${first[0]},${height} Z`;
   }, [path, height, showArea, values.length]);
 
