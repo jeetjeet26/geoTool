@@ -45,7 +45,7 @@ async function generatePDF(runId: string, baseUrl: string): Promise<Buffer> {
     });
     
     // Wait for charts and visualizations to render
-    await page.waitForTimeout(3000);
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Hide any error overlays or development indicators before PDF generation
     await page.evaluate(() => {
@@ -116,7 +116,7 @@ async function generatePDF(runId: string, baseUrl: string): Promise<Buffer> {
     });
     
     // Wait a bit more for any animations to complete
-    await page.waitForTimeout(500);
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Log any remaining errors for debugging
     if (errors.length > 0) {
