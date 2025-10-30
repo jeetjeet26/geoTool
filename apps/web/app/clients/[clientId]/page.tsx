@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import { formatDistanceToNow } from 'date-fns';
 
 import type { Surface } from '@geo/core';
