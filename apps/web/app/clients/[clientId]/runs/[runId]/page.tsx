@@ -96,7 +96,7 @@ export default async function ClientRunDetailPage({
                       <div className="font-semibold text-slate-900">{query.text}</div>
                       {hasError && (
                         <div className="mt-1 text-xs font-semibold text-rose-600">
-                          ⚠️ Error: {query.error.summary || query.error.message}
+                          ⚠️ Error: {query.error?.summary || query.error?.message}
                         </div>
                       )}
                       {query.flags.length > 0 && !hasError && (
