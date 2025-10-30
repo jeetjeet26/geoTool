@@ -34,7 +34,7 @@ async function generatePDF(runId: string, baseUrl: string): Promise<Buffer> {
     });
     
     page.on('pageerror', (error) => {
-      errors.push(error.message);
+      errors.push((error as Error).message);
     });
     
     await page.goto(reportUrl, { waitUntil: 'networkidle0', timeout: 30000 });
