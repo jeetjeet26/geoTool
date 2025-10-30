@@ -509,7 +509,7 @@ export default async function ClientReportPage({
               <ul>
                 {wins.slice(0, 5).map((query, idx) => (
                   <li key={idx}>
-                    Continue optimizing content for "{query.text}" which shows strong performance (+{query.deltas?.scoreDelta?.toFixed(1) ?? 0} pts)
+                    Continue optimizing content for &ldquo;{query.text}&rdquo; which shows strong performance (+{query.deltas?.scoreDelta?.toFixed(1) ?? 0} pts)
                   </li>
                 ))}
               </ul>
@@ -522,7 +522,7 @@ export default async function ClientReportPage({
               <ul>
                 {losses.slice(0, 5).map((query, idx) => (
                   <li key={idx}>
-                    Review and improve visibility for "{query.text}" which shows decline ({query.deltas?.scoreDelta?.toFixed(1) ?? 0} pts)
+                    Review and improve visibility for &ldquo;{query.text}&rdquo; which shows decline ({query.deltas?.scoreDelta?.toFixed(1) ?? 0} pts)
                   </li>
                 ))}
               </ul>
