@@ -197,7 +197,7 @@ export async function GET(
         : 'in-progress';
       const filename = `${clientName.replace(/[^a-z0-9]/gi, '_')}_report_${dateStr}.pdf`;
 
-      return new NextResponse(pdfBuffer, {
+      return new NextResponse(pdfBuffer as unknown as BodyInit, {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="${filename}"`
