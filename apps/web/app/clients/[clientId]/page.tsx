@@ -416,7 +416,7 @@ export default async function ClientInsightsPage({
                   flag,
                   queryType: q.type,
                   count: 1,
-                  severity: flag.includes('critical') || flag.includes('high') ? 'high' : flag.includes('medium') ? 'medium' : 'low' as const
+                  severity: (flag.includes('critical') || flag.includes('high') ? 'high' : flag.includes('medium') ? 'medium' : 'low') as 'low' | 'medium' | 'high'
                 })) ?? []
               ) ?? []),
               ...(claudeDetail?.queries.flatMap((q) =>
@@ -424,7 +424,7 @@ export default async function ClientInsightsPage({
                   flag,
                   queryType: q.type,
                   count: 1,
-                  severity: flag.includes('critical') || flag.includes('high') ? 'high' : flag.includes('medium') ? 'medium' : 'low' as const
+                  severity: (flag.includes('critical') || flag.includes('high') ? 'high' : flag.includes('medium') ? 'medium' : 'low') as 'low' | 'medium' | 'high'
                 })) ?? []
               ) ?? [])
             ].reduce((acc, item) => {
