@@ -50,7 +50,7 @@ export default function UnifiedNav({ clientId }: UnifiedNavProps) {
   return (
     <nav className="flex flex-wrap items-center gap-2">
       {navItems.map((item) => {
-        const href = isClientContext && typeof item.path === 'function' 
+        const href = typeof item.path === 'function' 
           ? item.path(activeClientId) 
           : item.path;
         const active = typeof item.path === 'function' 
