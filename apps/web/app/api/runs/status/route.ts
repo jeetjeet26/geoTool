@@ -17,7 +17,9 @@ export async function GET(request: Request) {
     runId: run.runId,
     surface: run.surface,
     modelName: run.modelName,
-    startedAt: run.startedAt.toISOString()
+    startedAt: run.startedAt.toISOString(),
+    totalQueries: run.totalQueries ?? null,
+    completedQueries: run.completedQueries ?? 0
   }));
 
   return NextResponse.json({ activeRuns: serializedRuns });

@@ -14,6 +14,8 @@ export type RunSummary = {
   finishedAt: Date | null;
   overallScore: number;
   visibilityPct: number;
+  totalQueries?: number;
+  completedQueries?: number;
 };
 
 export type ClientRecord = {
@@ -661,11 +663,31 @@ export async function getActiveRuns(clientId: string): Promise<RunSummary[]> {
       scores: {
         orderBy: { createdAt: 'desc' },
         take: 1
+      },
+      _count: {
+        select: { answers: true }
+      },
+      client: {
+        select: {
+          _count: {
+            select: { queries: true }
+          }
+        }
       }
     }
   });
 
-  return runs.map((run) => toRunSummary(run));
+  return runs.map((run) => {
+    const summary = toRunSummary(run);
+    const completedQueries = run._count?.answers ?? 0;
+    const totalQueries = run.client?._count?.queries ?? 0;
+
+    return {
+      ...summary,
+      completedQueries,
+      totalQueries
+    } satisfies RunSummary;
+  });
 }
 
 export function getConfigInfo() {
