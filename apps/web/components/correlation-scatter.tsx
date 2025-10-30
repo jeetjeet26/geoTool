@@ -121,7 +121,7 @@ export default function CorrelationScatter({
         ))}
 
         {/* Trendline */}
-        {chart.trendline && (
+        {chart.trendline && chart.yRange && (
           <line
             x1={paddingX}
             y1={paddingY + usableHeight - ((chart.trendline.slope * chart.minX + chart.trendline.intercept - chart.minY) / chart.yRange) * usableHeight}
@@ -135,7 +135,7 @@ export default function CorrelationScatter({
         )}
 
         {/* Data points */}
-        {chart.points.map((point, index) => {
+        {chart.xRange && chart.yRange && chart.points.map((point, index) => {
           const x = paddingX + ((point.x - chart.minX) / chart.xRange) * usableWidth;
           const y = paddingY + usableHeight - ((point.y - chart.minY) / chart.yRange) * usableHeight;
           const size = point.original.size ?? 4;

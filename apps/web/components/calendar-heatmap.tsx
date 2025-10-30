@@ -20,7 +20,7 @@ export default function CalendarHeatmap({
     const dateMap = new Map<string, { value: number; label?: string }>();
     data.forEach((item) => {
       const date = item.date instanceof Date ? item.date : new Date(item.date);
-      const key = date.toISOString().split('T')[0];
+      const key = date.toISOString().split('T')[0] || date.toISOString();
       dateMap.set(key, { value: item.value, label: item.label });
     });
 
@@ -36,7 +36,7 @@ export default function CalendarHeatmap({
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const key = date.toISOString().split('T')[0];
+      const key = date.toISOString().split('T')[0] || date.toISOString();
       const entry = dateMap.get(key);
 
       squares.push({

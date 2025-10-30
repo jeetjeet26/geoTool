@@ -46,7 +46,7 @@ export default function DistributionChart({
         Math.floor((value - min) / binWidth),
         bins - 1
       );
-      binData[binIndex].count++;
+      binData[binIndex]!.count++;
     });
 
     // Filter out empty bins but keep their index for proper spacing
@@ -54,8 +54,8 @@ export default function DistributionChart({
 
     const sorted = [...values].sort((a, b) => a - b);
     const median = sorted.length % 2 === 0
-      ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
-      : sorted[Math.floor(sorted.length / 2)];
+      ? (sorted[sorted.length / 2 - 1]! + sorted[sorted.length / 2]!) / 2
+      : sorted[Math.floor(sorted.length / 2)]!;
 
     const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
 
@@ -128,7 +128,7 @@ export default function DistributionChart({
           )}
 
           {/* Median line */}
-          {showStats && chart.median >= chart.min && chart.median <= chart.max && (
+          {showStats && chart.median !== undefined && chart.median >= chart.min && chart.median <= chart.max && (
             <line
               x1={paddingX + ((chart.median - chart.min) / (chart.max - chart.min || 1)) * usableWidth}
               y1={paddingY - 2}
