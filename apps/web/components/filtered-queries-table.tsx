@@ -345,7 +345,7 @@ export default function FilteredQueriesTable({ queries, annotations = {} }: Filt
             ) : (
               paginatedQueries.map((item, index) => {
                 if (item.type === 'group') {
-                  const group = item.data;
+                  const group = (item as { type: 'group'; data: any }).data;
                   const isExpanded = expandedGroups.has(group.key);
                   return (
                     <tr key={`group-${group.key}`} className="bg-slate-50/50">
@@ -368,7 +368,7 @@ export default function FilteredQueriesTable({ queries, annotations = {} }: Filt
                     </tr>
                   );
                 } else {
-                  return <TableRow key={item.data.queryId} query={item.data} annotations={annotations} />;
+                  return <TableRow key={(item as { type: 'item'; data: QueryRow }).data.queryId} query={(item as { type: 'item'; data: QueryRow }).data} annotations={annotations} />;
                 }
               })
             )}
